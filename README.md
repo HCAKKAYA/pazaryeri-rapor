@@ -1,5 +1,7 @@
 # Pazaryeri Rapor
 
+[![testler](https://github.com/HCAKKAYA/pazaryeri-rapor/actions/workflows/testler.yml/badge.svg)](https://github.com/HCAKKAYA/pazaryeri-rapor/actions/workflows/testler.yml)
+
 Trendyol, Hepsiburada gibi pazaryerlerinde satış yapan küçük işletmeler için haftalık kâr raporu ve satıcı paneli.
 
 Satıcı panelden sipariş dosyasını indiriyor, bu sistem dosyayı okuyup asıl merak edilen soruya cevap veriyor: komisyon, kargo ve ürün maliyeti düştükten sonra elde ne kaldı? Her pazartesi PDF ekli bir e-posta gidiyor; satıcı istediği zaman panele girip istediği döneme bakabiliyor.
