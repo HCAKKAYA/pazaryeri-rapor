@@ -27,10 +27,10 @@ Pazaryeri panelleri ciroyu gösteriyor ama satıcının cebine kalanı göstermi
 
 | | |
 |---|---|
-| **Haftalık rapor** | HTML ve PDF. Net kâr, önceki haftayla karşılaştırma, uyarılar, son 8 haftanın grafiği, ürün tablosu ve veri kalitesi notu. |
+| **Haftalık rapor** | HTML ve PDF. Net kâr, önceki haftayla karşılaştırma, uyarılar, son 8 haftanın grafiği, ürün bazında kâr kırılımı (brüt → komisyon → kargo → maliyet → net, marj, adet başına kâr), stok ve iade tablosu, veri kalitesi notu. |
 | **E-posta** | Telefonda okunacak kısa bir gövde, PDF eki. Varsayılan olarak yalnız taslak yazılır, gönderim ayrıca açılır. |
 | **Haftalık zamanlama** | Her pazartesi kendiliğinden çalışır. Veri güncel değilse eski raporu tekrar göndermez, aynı haftayı iki kez göndermez. |
-| **Satıcı paneli** | E-posta ve parolayla giriş. Dönem seçimi ve önceki eşit dönemle karşılaştırma, günlük net kâr grafiği, sıralanabilir ürün tablosu, dosya yükleme. |
+| **Satıcı paneli** | E-posta ve parolayla giriş. Dönem seçimi ve önceki eşit dönemle karşılaştırma, günlük net kâr grafiği, sıralanabilir ürün bazında net kâr tablosu (toplam satırıyla), stok ve iade tablosu, dosya yükleme. |
 | **Yapay zeka yorumu** (isteğe bağlı) | Claude, hesaplanmış sayılardan 2-3 cümlelik bir özet ve öneriler yazar. Kapalıyken kural tabanlı özet kullanılır. |
 
 <table>
@@ -105,7 +105,7 @@ py -3 -m venv .venv
 .venv\Scripts\python cli.py kullanici-ekle --eposta demo@example.com --magaza "Örnek Mağaza"
 .venv\Scripts\python cli.py panel                 # http://127.0.0.1:8791
 
-.venv\Scripts\python -m pytest -q                 # 68 test
+.venv\Scripts\python -m pytest -q                 # 70 test
 ```
 
 Canlı demo GitHub Pages'te statik: GitHub Actions her gece sentetik veriyi yeniden üretir, panelin hazır dönemlerini sunucudaki kodun aynısıyla (SQL) önceden hesaplayıp JSON olarak yayınlar (`cli.py statik-demo`, `.github/workflows/demo.yml`). Bu yüzden canlı demoda giriş ekranı, dosya yükleme ve elle tarih seçimi yok; bunlar sunuculu sürümde var. Sunuculu demo modu: `cli.py panel --demo`, yayınlama: [deploy/DEMO.md](deploy/DEMO.md).
@@ -124,7 +124,7 @@ Proje bir portfolyo çalışması olarak geliştiriliyor ve uçtan uca çalış�
 ```
 rapor/          temizlik, metrikler, uyarılar, yorum, rapor, PDF, e-posta, panel, giriş
 config/         sütun eşleme ve mağaza ayarları
-tests/          68 test
+tests/          70 test
 deploy/         Docker ve Caddy ile sunucu kurulumu
 tools/          README ekran görüntülerini yeniden üreten betik
 docs/           kullanım kılavuzu ve görseller

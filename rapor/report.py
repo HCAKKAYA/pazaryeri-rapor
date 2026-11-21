@@ -29,7 +29,7 @@ def render(store: str, week: str, cur: Period, prev: Period, series: list[Period
     )
     return _env.get_template("rapor.html.j2").render(
         store=store, week=week, cur=cur, prev=prev, ch=ch, alerts=alerts, narrative=narrative,
-        products=list(prod.itertuples()), q=q, quality=q.notes(),
+        products=list(prod.assign(stock_days_sort=prod["stock_days"].fillna(1e12)).itertuples()), q=q, quality=q.notes(),
         chart_weekly=charts.weekly_profit(series),
         chart_products=charts.product_profit(prod),
     )

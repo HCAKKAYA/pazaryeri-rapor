@@ -57,12 +57,16 @@
   .alert b { font-weight:600; } .alert p { margin:2px 0 0; color:var(--ink2); }
   .empty { color:var(--ink3); font-size:14px; }
   .tablewrap { overflow-x:auto; }
-  table { width:100%; border-collapse:collapse; font-size:13.5px; min-width:640px; }
+  table { width:100%; border-collapse:collapse; font-size:13.5px; min-width:760px; }
   th, td { padding:7px 8px; border-bottom:1px solid var(--line); text-align:right; white-space:nowrap; }
   th:first-child, td:first-child { text-align:left; white-space:normal; }
   th { color:var(--ink2); font-weight:600; cursor:pointer; user-select:none; }
   th[aria-sort="ascending"]::after { content:" ↑"; } th[aria-sort="descending"]::after { content:" ↓"; }
   td.neg { color:var(--crit); } td.low { color:var(--warn); font-weight:600; }
+  tfoot td { font-weight:650; border-top:2px solid var(--line); border-bottom:0; }
+  td.muted { color:var(--ink2); }
+  table.narrow { min-width:420px; }
+  .note { color:var(--ink2); font-size:13px; margin:-4px 0 10px; }
   .upload { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:14px; }
   .upload label { display:block; font-size:13.5px; color:var(--ink2); margin-bottom:6px; }
   .upload input[type=file] { font:inherit; font-size:13px; max-width:100%; color:var(--ink2); }
@@ -127,11 +131,20 @@
   </div>
 
   <div class="card">
-    <h2>Ürünler</h2>
-    <div class="tablewrap"><table id="tbl"><thead><tr>
-      <th data-k="urun">Ürün</th><th data-k="adet">Adet</th><th data-k="brut">Brüt</th>
-      <th data-k="net" aria-sort="descending">Net kâr</th><th data-k="iade">İade (28 g)</th>
-      <th data-k="stok">Stok</th><th data-k="gun_yeter">Kaç gün yeter</th>
+    <h2>Ürün bazında net kâr</h2>
+    <p class="note">Brüt satıştan komisyon, kargo ve ürün maliyeti düşülerek. Sütun başlığına tıklayarak sıralayın.</p>
+    <div class="tablewrap"><table id="tbl-kar" class="sortable"><thead><tr>
+      <th data-k="urun">Ürün</th><th data-k="adet">Adet</th><th data-k="brut">Brüt satış</th>
+      <th data-k="komisyon">Komisyon</th><th data-k="kargo">Kargo</th><th data-k="maliyet">Maliyet</th>
+      <th data-k="net" aria-sort="descending">Net kâr</th><th data-k="marj">Marj</th><th data-k="adet_basi">Adet başına</th>
+    </tr></thead><tbody></tbody><tfoot></tfoot></table></div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <h2>Stok ve iade</h2>
+    <div class="tablewrap"><table id="tbl-stok" class="sortable narrow"><thead><tr>
+      <th data-k="urun">Ürün</th><th data-k="adet">Adet</th><th data-k="iade">İade (28 g)</th>
+      <th data-k="stok">Stok</th><th data-k="gun_yeter" aria-sort="ascending">Kaç gün yeter</th>
     </tr></thead><tbody></tbody></table></div>
   </div>
 

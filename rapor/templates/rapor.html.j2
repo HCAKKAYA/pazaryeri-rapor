@@ -39,6 +39,12 @@
   th:first-child, td:first-child { text-align:left; }
   th { color:var(--ink2); font-weight:600; }
   .neg { color:var(--crit); }
+  .muted { color:var(--ink2); }
+  .low { color:var(--warn); font-weight:600; }
+  tr.total td { font-weight:700; border-top:2px solid var(--line); border-bottom:0; }
+  table.narrow { width:70%; }
+  th, td { white-space:nowrap; }
+  td:first-child { white-space:normal; }
   .ozet { font-size:16px; margin:0 0 10px; }
   .oneriler { margin:0 0 6px; padding-left:22px; } .oneriler li { margin:6px 0; }
   .oneriler b { margin-right:4px; }
@@ -106,16 +112,34 @@
   <h2>Ürün bazında net kâr (bu hafta)</h2>
   <img alt="Ürünlere göre bu haftanın net kârı" src="data:image/png;base64,{{ chart_products }}">
 
-  <h2>Ürün tablosu</h2>
+  <h2>Ürün bazında kâr kırılımı</h2>
   <table>
-    <tr><th>Ürün</th><th>Adet</th><th>Brüt</th><th>Net kâr</th><th>İade (28 g)</th><th>Stok</th><th>Kaç gün yeter</th></tr>
+    <tr><th>Ürün</th><th>Adet</th><th>Brüt satış</th><th>Komisyon</th><th>Kargo</th><th>Maliyet</th><th>Net kâr</th><th>Marj</th><th>Adet başına</th></tr>
     {% for r in products %}
     <tr>
       <td>{{ r.name }}</td><td>{{ num(r.units) }}</td><td>{{ tl(r.gross) }}</td>
+      <td class="muted">{{ tl(-r.commission) }}</td><td class="muted">{{ tl(-r.shipping) }}</td><td class="muted">{{ tl(-r.cogs) }}</td>
       <td class="{{ 'neg' if r.net_profit < 0 else '' }}">{{ tl(r.net_profit) }}</td>
+      <td class="{{ 'neg' if r.net_profit < 0 else '' }}">{{ pct(r.margin) if r.margin == r.margin else '—' }}</td>
+      <td class="{{ 'neg' if r.net_profit < 0 else '' }}">{{ tl(r.profit_per_unit) if r.profit_per_unit == r.profit_per_unit else '—' }}</td>
+    </tr>
+    {% endfor %}
+    <tr class="total">
+      <td>Toplam</td><td>{{ num(cur.units) }}</td><td>{{ tl(cur.gross) }}</td>
+      <td>{{ tl(-cur.commission) }}</td><td>{{ tl(-cur.shipping) }}</td><td>{{ tl(-cur.cogs) }}</td>
+      <td class="{{ 'neg' if cur.net_profit < 0 else '' }}">{{ tl(cur.net_profit) }}</td><td>{{ pct(cur.margin) }}</td><td></td>
+    </tr>
+  </table>
+
+  <h2>Stok ve iade</h2>
+  <table class="narrow">
+    <tr><th>Ürün</th><th>İade (28 g)</th><th>Stok</th><th>Kaç gün yeter</th></tr>
+    {% for r in products|sort(attribute='stock_days_sort') %}
+    <tr>
+      <td>{{ r.name }}</td>
       <td>{{ pct(r.return_rate_28d) if r.return_rate_28d == r.return_rate_28d else '—' }}</td>
       <td>{{ num(r.stock) if r.stock == r.stock else '—' }}</td>
-      <td>{{ num(r.stock_days) if r.stock_days == r.stock_days else '—' }}</td>
+      <td class="{{ 'low' if r.stock_days == r.stock_days and r.stock_days < 7 else '' }}">{{ num(r.stock_days) if r.stock_days == r.stock_days else '—' }}</td>
     </tr>
     {% endfor %}
   </table>

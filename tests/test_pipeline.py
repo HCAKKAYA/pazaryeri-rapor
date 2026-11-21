@@ -28,6 +28,8 @@ def test_formats():
     assert tl(1234.6) == "1.235 ₺"
     assert tl(-296) == "−296 ₺"
     assert pct(-0.142, sign=True) == "−%14,2"
+    assert pct(-0.031) == "−%3,1"          # negatif marj işaretini kaybetmemeli
+    assert pct(0.2) == "%20,0" and pct(-0.00001) == "%0,0" and pct(0, sign=True) == "+%0,0"
 
 
 def _write(tmp_path, rows, products):
@@ -71,7 +73,38 @@ def test_net_profit_by_hand(tmp_path):
     assert q.duplicates == 1 and q.missing_required == 1 and q.unknown_status == {"Kayıp": 1}
 
     prod = metrics.products(con, date(2026, 11, 9), date(2026, 11, 15))
-    assert prod.loc[0, "net_profit"] == pytest.approx(60)
+    r = prod.iloc[0]
+    # Ürün kırılımı elle: brüt 200, komisyon 20, kargo 20 (teslim + iade), maliyet 100 -> net 60
+    assert (r.gross, r.commission, r.shipping, r.cogs) == pytest.approx((200, 20, 20, 100))
+    assert r.net_profit == pytest.approx(60)
+    assert r.margin == pytest.approx(0.30) and r.profit_per_unit == pytest.approx(30)
+
+
+def test_product_breakdown_sums_to_period(tmp_path):
+    """Ürünlerin kırılım toplamları, dönemin KPI'larıyla kuruşu kuruşuna aynı olmalı."""
+    o, p = sample.generate(tmp_path)
+    con = storage.build(":memory:", clean.load_orders(o, CFG, clean.Quality()), clean.load_products(p, CFG))
+    for s, e in [(date(2026, 11, 9), date(2026, 11, 15)), (date(2026, 9, 21), date(2026, 11, 15))]:
+        per = metrics.period(con, s, e)
+        prod = metrics.products(con, s, e)
+        for col, val in [("gross", per.gross), ("commission", per.commission), ("shipping", per.shipping),
+                         ("cogs", per.cogs), ("net_profit", per.net_profit), ("units", per.units)]:
+            assert prod[col].sum() == pytest.approx(val, abs=0.01), col
+        assert list(prod["net_profit"]) == sorted(prod["net_profit"], reverse=True)
+
+
+def test_cancelled_line_gets_no_shipping(tmp_path):
+    # Aynı siparişte bir satır teslim, bir satır iptal: kargonun tamamı teslim edilen ürüne yazılır.
+    rows = [
+        _row("9", "10.11.2026 10:00", "A", 1, "100,00", "Teslim Edildi", ship="30,00"),
+        _row("9", "10.11.2026 10:00", "B", 1, "100,00", "İptal Edildi", ship="30,00"),
+    ]
+    o, p = _write(tmp_path, rows, [{"Barkod": "A", "Ürün Adı": "A", "Birim Maliyet": "10,00", "Stok": 5},
+                                   {"Barkod": "B", "Ürün Adı": "B", "Birim Maliyet": "10,00", "Stok": 5}])
+    con = storage.build(":memory:", clean.load_orders(o, CFG, clean.Quality()), clean.load_products(p, CFG))
+    prod = metrics.products(con, date(2026, 11, 9), date(2026, 11, 15)).set_index("barcode")
+    assert prod.loc["A", "shipping"] == pytest.approx(30) and prod.loc["B", "shipping"] == pytest.approx(0)
+    assert prod["shipping"].sum() == pytest.approx(metrics.period(con, date(2026, 11, 9), date(2026, 11, 15)).shipping)
 
 
 def test_missing_column_message(tmp_path):

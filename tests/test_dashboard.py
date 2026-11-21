@@ -125,6 +125,10 @@ def test_summary(env):
     j = c.get("/api/ozet").json()
     assert j["aralik"]["bit"] == "2026-11-15" and j["aralik"]["gun"] == 28
     assert len(j["gunluk"]) == 28 and len(j["urunler"]) == 12
+    u, t = j["urunler"][0], j["urun_toplam"]
+    assert {"komisyon", "kargo", "maliyet", "marj", "adet_basi"} <= set(u)
+    assert u["net"] == pytest.approx(u["brut"] - u["komisyon"] - u["kargo"] - u["maliyet"], abs=0.02)
+    assert sum(x["net"] for x in j["urunler"]) == pytest.approx(t["net"], abs=0.1)
     assert any("stokta yok" in u["baslik"] for u in j["uyarilar"])
     j7 = c.get("/api/ozet?bas=2026-11-09&bit=2026-11-15").json()
     assert j7["aralik"]["gun"] == 7 and j7["aralik"]["onceki_bas"] == "2026-11-02"

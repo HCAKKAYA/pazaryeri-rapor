@@ -101,27 +101,33 @@ def weekly_series(con: duckdb.DuckDBPyConnection, end_week: str, n: int = 8) -> 
 
 
 def products(con: duckdb.DuckDBPyConnection, start: date, end: date) -> pd.DataFrame:
-    """Ürün bazında bu dönem ve son 28 günün özeti, stokla birlikte."""
+    """Ürün bazında kâr kırılımı (brüt, komisyon, kargo, maliyet, net, marj, adet başına)
+    ve son 28 günün iade ve stok özeti. Ürünlerin toplamı period() ile birebir aynıdır."""
     win_start = end - timedelta(days=27)
     return con.execute("""
         WITH l AS (
+            -- Siparişin kargosu, teslim/iade satırlarına eşit bölünür; iptal satırı pay almaz.
+            -- Böylece ürünlerin kargo toplamı period() içindeki kargo toplamına eşit olur.
             SELECT *,
-                   shipping_fee / COUNT(*) OVER (PARTITION BY order_id) AS ship_share
+                   CASE WHEN status IN ('delivered', 'returned')
+                        THEN shipping_fee / COUNT(*) FILTER (WHERE status IN ('delivered', 'returned'))
+                                                     OVER (PARTITION BY order_id)
+                        ELSE 0 END AS ship_share
             FROM lines
         ),
         agg AS (
             SELECT
                 barcode,
                 ANY_VALUE(name) AS name,
-                SUM(gross)    FILTER (WHERE status = 'delivered' AND day BETWEEN $s AND $e) AS gross,
-                SUM(quantity) FILTER (WHERE status = 'delivered' AND day BETWEEN $s AND $e) AS units,
-                SUM(gross - commission - cogs) FILTER (WHERE status = 'delivered' AND day BETWEEN $s AND $e)
-                  - COALESCE(SUM(ship_share) FILTER (WHERE status IN ('delivered','returned') AND day BETWEEN $s AND $e), 0)
-                  AS net_profit,
+                SUM(gross)      FILTER (WHERE status = 'delivered' AND day BETWEEN $s AND $e) AS gross,
+                SUM(quantity)   FILTER (WHERE status = 'delivered' AND day BETWEEN $s AND $e) AS units,
+                SUM(commission) FILTER (WHERE status = 'delivered' AND day BETWEEN $s AND $e) AS commission,
+                SUM(cogs)       FILTER (WHERE status = 'delivered' AND day BETWEEN $s AND $e) AS cogs,
+                SUM(ship_share) FILTER (WHERE day BETWEEN $s AND $e)                          AS shipping,
                 SUM(quantity) FILTER (WHERE status = 'delivered' AND day BETWEEN $w AND $e) AS units_28d,
                 SUM(quantity) FILTER (WHERE status = 'returned'  AND day BETWEEN $w AND $e) AS returned_28d,
                 SUM(gross - commission - cogs) FILTER (WHERE status = 'delivered' AND day BETWEEN $w AND $e)
-                  - COALESCE(SUM(ship_share) FILTER (WHERE status IN ('delivered','returned') AND day BETWEEN $w AND $e), 0)
+                  - COALESCE(SUM(ship_share) FILTER (WHERE day BETWEEN $w AND $e), 0)
                   AS net_profit_28d,
                 BOOL_OR(cost_missing) AS cost_missing
             FROM l
@@ -129,18 +135,23 @@ def products(con: duckdb.DuckDBPyConnection, start: date, end: date) -> pd.DataF
         )
         SELECT a.*, p.stock
         FROM agg a LEFT JOIN products p USING (barcode)
-        ORDER BY net_profit DESC NULLS LAST
     """, {"s": start, "e": end, "w": win_start}).df().assign(
         gross=lambda d: d["gross"].fillna(0),
         units=lambda d: d["units"].fillna(0),
-        net_profit=lambda d: d["net_profit"].fillna(0),
+        commission=lambda d: d["commission"].fillna(0),
+        cogs=lambda d: d["cogs"].fillna(0),
+        shipping=lambda d: d["shipping"].fillna(0),
         units_28d=lambda d: d["units_28d"].fillna(0),
         returned_28d=lambda d: d["returned_28d"].fillna(0),
         net_profit_28d=lambda d: d["net_profit_28d"].fillna(0),
     ).assign(
+        net_profit=lambda d: d["gross"] - d["commission"] - d["shipping"] - d["cogs"],
+    ).assign(
+        margin=lambda d: d["net_profit"] / d["gross"].where(lambda x: x > 0),
+        profit_per_unit=lambda d: d["net_profit"] / d["units"].where(lambda x: x > 0),
         return_rate_28d=lambda d: d["returned_28d"] / (d["units_28d"] + d["returned_28d"]).where(lambda x: x > 0),
         stock_days=lambda d: d["stock"] / (d["units_28d"] / 28).where(lambda x: x > 0),
-    )
+    ).sort_values("net_profit", ascending=False, kind="stable").reset_index(drop=True)
 
 
 def daily(con: duckdb.DuckDBPyConnection, start: date, end: date) -> pd.DataFrame:

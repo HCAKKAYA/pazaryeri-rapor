@@ -122,11 +122,18 @@ def summary(store: Store, start: date | None, end: date | None) -> dict:
                     "siparis": int(r.orders)} for r in days.itertuples()],
         "urunler": [{
             "urun": r.name, "adet": float(r.units), "brut": round(float(r.gross), 2),
-            "net": round(float(r.net_profit), 2),
+            "komisyon": round(float(r.commission), 2), "kargo": round(float(r.shipping), 2),
+            "maliyet": round(float(r.cogs), 2), "net": round(float(r.net_profit), 2),
+            "marj": None if r.margin != r.margin else round(float(r.margin), 4),
+            "adet_basi": None if r.profit_per_unit != r.profit_per_unit else round(float(r.profit_per_unit), 2),
             "iade": None if r.return_rate_28d != r.return_rate_28d else round(float(r.return_rate_28d), 4),
             "stok": None if r.stock != r.stock or r.stock is None else float(r.stock),
             "gun_yeter": None if r.stock_days != r.stock_days else round(float(r.stock_days), 1),
         } for r in prod.itertuples()],
+        "urun_toplam": {"brut": round(cur.gross, 2), "komisyon": round(cur.commission, 2),
+                        "kargo": round(cur.shipping, 2), "maliyet": round(cur.cogs, 2),
+                        "net": round(cur.net_profit, 2), "adet": float(cur.units),
+                        "marj": None if cur.margin is None else round(cur.margin, 4)},
         "uyarilar": [{"seviye": a.level, "etiket": a.label, "baslik": a.title, "ayrinti": a.detail} for a in found],
     }
 

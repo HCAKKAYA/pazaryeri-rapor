@@ -9,7 +9,7 @@
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
   const STATIK = document.body.dataset.statik === "1";
-  let state = { bas: null, bit: null, days: 28, data: null, sort: { k: "net", dir: -1 } };
+  let state = { bas: null, bit: null, days: 28, data: null };
   let chart;
 
   function showError(msg) { const b = $("errbox"); b.textContent = msg; b.style.display = msg ? "block" : "none"; }
@@ -93,28 +93,50 @@
     chart = new Chart($("chart"), cfg);
   }
 
+  // Sıralanabilir tablolar: her tablonun kendi sütunları ve sıralama durumu var.
+  const n = v => v == null ? "—" : tl.format(v);
+  const p = v => v == null ? "—" : (v < 0 ? "−" : "") + "%" + Math.abs(v * 100).toLocaleString("tr-TR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const cost = v => v ? "−" + tl.format(v) + " ₺" : "0 ₺";
+  const TABLES = {
+    "tbl-kar": {
+      sort: { k: "net", dir: -1 },
+      row: r => `<td>${esc(r.urun)}</td><td>${n(r.adet)}</td><td>${fmtTL(r.brut)}</td>
+        <td class="muted">${cost(r.komisyon)}</td><td class="muted">${cost(r.kargo)}</td><td class="muted">${cost(r.maliyet)}</td>
+        <td class="${r.net < 0 ? "neg" : ""}">${fmtTL(r.net)}</td><td class="${r.marj < 0 ? "neg" : ""}">${p(r.marj)}</td>
+        <td class="${r.adet_basi < 0 ? "neg" : ""}">${r.adet_basi == null ? "—" : fmtTL(r.adet_basi)}</td>`,
+      foot: t => `<tr><td>Toplam</td><td>${n(t.adet)}</td><td>${fmtTL(t.brut)}</td><td>${cost(t.komisyon)}</td>
+        <td>${cost(t.kargo)}</td><td>${cost(t.maliyet)}</td><td class="${t.net < 0 ? "neg" : ""}">${fmtTL(t.net)}</td>
+        <td>${p(t.marj)}</td><td></td></tr>`,
+    },
+    "tbl-stok": {
+      sort: { k: "gun_yeter", dir: 1 },
+      row: r => `<td>${esc(r.urun)}</td><td>${n(r.adet)}</td><td>${p(r.iade)}</td><td>${n(r.stok)}</td>
+        <td class="${r.gun_yeter != null && r.gun_yeter < 7 ? "low" : ""}">${n(r.gun_yeter)}</td>`,
+    },
+  };
+
   function drawTable() {
-    const { k, dir } = state.sort;
-    const rows = [...state.data.urunler].sort((a, b) => {
-      const x = a[k], y = b[k];
-      if (x == null) return 1; if (y == null) return -1;
-      return (typeof x === "string" ? x.localeCompare(y, "tr") : x - y) * dir;
-    });
-    const n = v => v == null ? "—" : tl.format(v);
-    const p = v => v == null ? "—" : "%" + (v * 100).toLocaleString("tr-TR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-    document.querySelector("#tbl tbody").innerHTML = rows.map(r => `<tr>
-      <td>${esc(r.urun)}</td><td>${n(r.adet)}</td><td>${fmtTL(r.brut)}</td>
-      <td class="${r.net < 0 ? "neg" : ""}">${fmtTL(r.net)}</td><td>${p(r.iade)}</td>
-      <td>${n(r.stok)}</td><td class="${r.gun_yeter != null && r.gun_yeter < 7 ? "low" : ""}">${n(r.gun_yeter)}</td></tr>`).join("");
-    document.querySelectorAll("#tbl th").forEach(th => th.setAttribute("aria-sort",
-      th.dataset.k === k ? (dir > 0 ? "ascending" : "descending") : "none"));
+    for (const [id, t] of Object.entries(TABLES)) {
+      const { k, dir } = t.sort;
+      const rows = [...state.data.urunler].sort((a, b) => {
+        const x = a[k], y = b[k];
+        if (x == null) return 1; if (y == null) return -1;
+        return (typeof x === "string" ? x.localeCompare(y, "tr") : x - y) * dir;
+      });
+      document.querySelector(`#${id} tbody`).innerHTML = rows.map(r => `<tr>${t.row(r)}</tr>`).join("");
+      if (t.foot && state.data.urun_toplam) document.querySelector(`#${id} tfoot`).innerHTML = t.foot(state.data.urun_toplam);
+      document.querySelectorAll(`#${id} th`).forEach(th => th.setAttribute("aria-sort",
+        th.dataset.k === k ? (dir > 0 ? "ascending" : "descending") : "none"));
+    }
   }
 
-  document.querySelectorAll("#tbl th").forEach(th => th.addEventListener("click", () => {
-    const k = th.dataset.k;
-    state.sort = { k, dir: state.sort.k === k ? -state.sort.dir : (k === "urun" ? 1 : -1) };
-    drawTable();
-  }));
+  for (const [id, t] of Object.entries(TABLES)) {
+    document.querySelectorAll(`#${id} th`).forEach(th => th.addEventListener("click", () => {
+      const k = th.dataset.k;
+      t.sort = { k, dir: t.sort.k === k ? -t.sort.dir : (k === "urun" ? 1 : -1) };
+      drawTable();
+    }));
+  }
 
   document.querySelectorAll("#presets button").forEach(b => b.addEventListener("click", () => {
     document.querySelectorAll("#presets button").forEach(x => x.setAttribute("aria-pressed", x === b));

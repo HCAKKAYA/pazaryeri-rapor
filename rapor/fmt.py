@@ -29,6 +29,8 @@ def pct(x: float | None, sign: bool = False) -> str:
     if x is None:
         return "—"
     s = "%" + _tr(abs(x) * 100, 1)
+    negative = x < 0 and s != "%0,0"
     if not sign:
-        return s
-    return ("+" if x >= 0 else "−") + s
+        # Eskiden burada işaret atılıyordu: negatif kâr marjı pozitif görünüyordu.
+        return "−" + s if negative else s
+    return ("−" if negative else "+") + s
