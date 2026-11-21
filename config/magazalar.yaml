@@ -1,0 +1,20 @@
+# Haftalık otomatik çalıştırmanın ayarları (python cli.py haftalik).
+#
+# Parola BURAYA YAZILMAZ. Bir kez şu komutla Windows Kimlik Yöneticisi'ne kaydedilir:
+#   .venv\Scripts\python cli.py sifre-kaydet
+
+smtp:
+  sunucu: smtp.gmail.com
+  port: 587
+  kullanici: ""        # ör. adres@gmail.com
+  gonderen: ""         # boşsa kullanici
+
+magazalar:
+  # Her mağaza için satıcının dışa aktarım dosyalarının konduğu klasör.
+  # Klasördeki desene uyan EN YENİ dosya kullanılır.
+  - ad: Örnek Mağaza
+    klasor: sample_data
+    siparis_desen: "siparis*.xlsx"
+    urun_desen: "urun*.csv"
+    alicilar: []         # ör. ["satici@ornek.com"]
+    gonder: false        # false: yalnız taslak .eml yazılır; true: gerçekten gönderilir

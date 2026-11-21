@@ -51,17 +51,44 @@ class SmtpConfig:
 
     @classmethod
     def from_env(cls) -> "SmtpConfig":
-        missing = [k for k in ("SMTP_SUNUCU", "SMTP_KULLANICI", "SMTP_PAROLA") if not os.environ.get(k)]
+        """Ortam değişkenlerinden okur; parola yoksa Windows Kimlik Yöneticisi'ne bakar."""
+        missing = [k for k in ("SMTP_SUNUCU", "SMTP_KULLANICI") if not os.environ.get(k)]
         if missing:
             raise MailError("SMTP ayarı eksik: " + ", ".join(missing))
-        user = os.environ["SMTP_KULLANICI"]
-        return cls(
-            host=os.environ["SMTP_SUNUCU"],
-            port=int(os.environ.get("SMTP_PORT", "587")),
-            user=user,
-            password=os.environ["SMTP_PAROLA"],
-            sender=os.environ.get("SMTP_GONDEREN", user),
-        )
+        return cls.from_settings({
+            "sunucu": os.environ["SMTP_SUNUCU"],
+            "port": os.environ.get("SMTP_PORT", 587),
+            "kullanici": os.environ["SMTP_KULLANICI"],
+            "gonderen": os.environ.get("SMTP_GONDEREN"),
+        }, password=os.environ.get("SMTP_PAROLA"))
+
+    @classmethod
+    def from_settings(cls, s: dict, password: str | None = None) -> "SmtpConfig":
+        """magazalar.yaml'daki smtp bölümünden okur. Parola dosyada değil, kasadadır."""
+        host, user = (s or {}).get("sunucu"), (s or {}).get("kullanici")
+        if not host or not user:
+            raise MailError("SMTP ayarı eksik: sunucu ve kullanici gerekli (config/magazalar.yaml)")
+        password = password or get_password(user)
+        if not password:
+            raise MailError(f"{user} için SMTP parolası kayıtlı değil. Kaydetmek için: python cli.py sifre-kaydet")
+        return cls(host=host, port=int(s.get("port") or 587), user=user, password=password,
+                   sender=s.get("gonderen") or user)
+
+
+KEYRING_SERVICE = "pazaryeri-rapor-smtp"
+
+
+def get_password(user: str) -> str | None:
+    try:
+        import keyring
+        return keyring.get_password(KEYRING_SERVICE, user)
+    except Exception:  # kasa yoksa ya da erişilemiyorsa parola yok sayılır
+        return None
+
+
+def set_password(user: str, password: str) -> None:
+    import keyring
+    keyring.set_password(KEYRING_SERVICE, user, password)
 
 
 def subject_for(store: str, cur: Period, prev: Period, alerts) -> str:

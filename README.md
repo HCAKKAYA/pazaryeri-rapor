@@ -37,6 +37,26 @@ $env:SMTP_KULLANICI = "adres@gmail.com"; $env:SMTP_PAROLA = "<uygulama şifresi>
 
 Gmail normal parolayı kabul etmez; Google hesabında 2 adımlı doğrulama açıp "uygulama şifresi" üretmek gerekir.
 
+## Haftalık otomatik çalışma
+
+`config/magazalar.yaml` mağazaları, dosya klasörlerini, alıcıları ve SMTP ayarlarını tutar (parola hariç).
+
+```powershell
+.venv\Scripts\python cli.py sifre-kaydet                 # parola Windows Kimlik Yöneticisi'ne, bir kez
+.venv\Scripts\python cli.py haftalik --deneme            # hiçbir şey göndermeden dener
+.venv\Scripts\python cli.py zamanla --gun Monday --saat 08:00
+.venv\Scripts\python cli.py zamanla --kaldir
+```
+
+Görev her pazartesi 08:00'de `cli.py haftalik` çalıştırır; bilgisayar kapalıysa açıldığında çalışır. Kurallar:
+- Klasördeki desene uyan **en yeni** sipariş ve ürün dosyası kullanılır.
+- Dosyadaki son tam hafta beklenen hafta değilse (satıcı yeni dosya koymamışsa) rapor **gönderilmez**.
+- Aynı mağaza ve hafta iki kez gönderilmez (`data/gonderilenler.json`); `--zorla` bunu geçer.
+- `gonder: false` olan mağaza için yalnız taslak yazılır.
+- Bir mağazadaki hata diğerlerini durdurmaz; her şey `logs/haftalik-<tarih>.log` dosyasına yazılır.
+
+Sınır: veriyi hâlâ birinin klasöre koyması gerekiyor. Pazaryeri API bağlantısı gelene kadar bu elle.
+
 ## Akış
 
 `clean.py` (sütun eşleme, Türkçe sayı/tarih, çift ve eksik satır) → `storage.py` (DuckDB)
@@ -77,4 +97,4 @@ Sınır: denetim sayının pakette *var olduğunu* kontrol eder, doğru ölçüy
 1. Gerçek bir satıcıdan dışa aktarım dosyası; mapping ve varsayımların doğrulanması.
 2. Yapay zeka yorumunu gerçek API anahtarıyla deneyip ilk yanıtları elle okumak.
 3. Kendi adresine gerçek bir deneme gönderimi; Gmail/Outlook'ta görünümün kontrolü.
-4. Haftalık zamanlama (Windows Görev Zamanlayıcı, sonra sunucu).
+4. Pazaryeri API bağlantısı (dosyayı elle koyma adımını kaldırmak için).
