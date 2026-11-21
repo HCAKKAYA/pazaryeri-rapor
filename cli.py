@@ -183,6 +183,9 @@ def cmd_parola(args) -> None:
 
 def cmd_statik_demo(args) -> None:
     from rapor import static_demo
+    _load_env()
+    if args.sorusuz:
+        os.environ.pop("ANTHROPIC_API_KEY", None)   # hazır soru üretme (API çağrısı yok)
     files = static_demo.build(Path(args.cikti), make_pdf=not args.pdf_yok)
     print(f"Statik demo -> {Path(args.cikti).resolve()} ({len(files)} dosya)")
 
@@ -286,6 +289,7 @@ def main(argv=None) -> None:
     sd = sub.add_parser("statik-demo", help="GitHub Pages için statik demo üret")
     sd.add_argument("--cikti", default=str(ROOT / "site"))
     sd.add_argument("--pdf-yok", action="store_true")
+    sd.add_argument("--sorusuz", action="store_true", help="hazır soruları üretme (API anahtarı olsa bile)")
     sd.set_defaults(fn=cmd_statik_demo)
 
     so = sub.add_parser("sor", help="veriye Türkçe soru sor (ANTHROPIC_API_KEY gerekir)")

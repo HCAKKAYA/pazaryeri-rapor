@@ -31,6 +31,9 @@ jobs:
       - run: python cli.py statik-demo --cikti site
         env:
           TZ: Europe/Istanbul
+          # Hazır örnek sorular için (depo Settings > Secrets > Actions). Yoksa sorular atlanır.
+          # Anahtar yalnız bu adımda kullanılır, yayınlanan sayfaya girmez. Maliyet: gecede ~6 soru.
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site

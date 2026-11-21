@@ -9,10 +9,11 @@ GitHub Actions her gece çalıştırır, böylece sentetik veri hep "dün"e kada
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 import tempfile
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from . import clean, dashboard, demo, pdf, pipeline
@@ -21,7 +22,32 @@ ROOT = pipeline.ROOT
 PRESETS = (7, 28, 56, 91)
 
 
-def build(out: Path, today: date | None = None, make_pdf: bool = True) -> list[Path]:
+ORNEK_SORULAR = [
+    "Bu hafta en çok kâr eden 3 ürün hangisi?",
+    "Kargo cironun yüzde kaçını yiyor?",
+    "Zarar eden ürünlerim var mı?",
+    "İade oranı en yüksek ürün hangisi?",
+    "Son 4 haftanın net kârını hafta hafta göster.",
+    "Geçen ay reklama ne kadar harcadım?",          # cevaplanamaz: modelin "bilmiyorum" diyebildiğini gösterir
+]
+
+
+def example_answers(qcon, client=None) -> dict:
+    """Örnek soruları gerçek modelle cevaplar. Başarısız olanlar yayınlanmaz (hata sayfaya düşmez)."""
+    from . import soru
+    items, cost = [], 0.0
+    for q in ORNEK_SORULAR:
+        c = soru.ask(q, qcon, client=client)
+        cost += c.maliyet
+        if c.durum in ("ok", "cevaplanamaz"):
+            items.append(c.to_dict())
+        else:
+            print(f"Örnek soru yayınlanmadı ({c.hata}): {q}")
+    print(f"Örnek sorular: {len(items)}/{len(ORNEK_SORULAR)}, tahmini maliyet ${cost:.3f}")
+    return {"model": soru.MODEL, "uretildi": datetime.now().strftime("%d.%m.%Y %H:%M"), "sorular": items}
+
+
+def build(out: Path, today: date | None = None, make_pdf: bool = True, client=None) -> list[Path]:
     out = Path(out)
     if out.exists():
         shutil.rmtree(out)
@@ -42,7 +68,16 @@ def build(out: Path, today: date | None = None, make_pdf: bool = True) -> list[P
             p = out / "veri" / f"ozet-{days}.json"
             p.write_text(json.dumps(data, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
             written.append(p)
+
+        # Hazır sorular: anahtar varsa (GitHub Actions'ta şifreli Secret) gerçek modelle cevaplanır.
+        # Anahtar sayfaya hiç girmez; ziyaretçi yalnız bu önceden üretilmiş cevapları görür.
+        if client is not None or os.environ.get("ANTHROPIC_API_KEY"):
+            p = out / "veri" / "sorular.json"
+            p.write_text(json.dumps(example_answers(store.qcon, client), ensure_ascii=False, separators=(",", ":")),
+                         encoding="utf-8")
+            written.append(p)
         store.con.close()
+        store.qcon.close()
 
         # Son tam haftanın raporu (kural tabanlı özet; demo API anahtarı kullanmaz).
         res = pipeline.run(demo.STORE_NAME, folder / "siparisler.xlsx", folder / "urunler.csv",

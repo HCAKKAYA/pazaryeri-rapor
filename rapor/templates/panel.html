@@ -27,6 +27,7 @@
   * { box-sizing:border-box; }
   body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif; }
   .wrap { max-width:1100px; margin:0 auto; padding:20px 16px 48px; }
+  [hidden] { display:none !important; }  /* display:flex gibi kurallar hidden özniteliğini ezmesin */
   header { display:flex; justify-content:space-between; align-items:flex-end; gap:12px; flex-wrap:wrap; margin-bottom:14px; }
   h1 { font-size:22px; margin:0; }
   .fresh { color:var(--ink2); font-size:13px; }
@@ -81,6 +82,8 @@
   .answer pre { white-space:pre-wrap; background:var(--soft); padding:8px 10px; border-radius:6px; font-size:12px; overflow-x:auto; }
   .answer .muted { color:var(--ink2); font-size:13.5px; }
   .answer table { min-width:0; }
+  .examples button[aria-pressed="true"] { background:var(--accent-soft); color:var(--ink); border-color:var(--accent); }
+  .prepared-note { margin-top:10px; font-size:12.5px; }
   .upload { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:14px; }
   .upload label { display:block; font-size:13.5px; color:var(--ink2); margin-bottom:6px; }
   .upload input[type=file] { font:inherit; font-size:13px; max-width:100%; color:var(--ink2); }
@@ -133,6 +136,7 @@
 
   <div class="card ask-card" id="askcard" hidden>
     <h2>Verine sor</h2>
+    <p class="note" id="askintro" hidden>Bir soru seçin: Claude soruyu SQL'e çevirdi, sorgu veride çalıştı, cevap ve kullanılan SQL aşağıda.</p>
     <form id="askform" class="ask">
       <input id="askq" name="soru" type="text" maxlength="500" autocomplete="off"
              placeholder="Örn. Bu hafta en çok kâr eden 3 ürün hangisi?" aria-label="Sorunuz">

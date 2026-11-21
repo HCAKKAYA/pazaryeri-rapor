@@ -32,7 +32,7 @@
 
   function render(d) {
     $("demobar").hidden = !d.demo;
-    $("askcard").hidden = !d.soru_acik;
+    if (!STATIK) $("askcard").hidden = !d.soru_acik;
     if (STATIK) { $("bas").disabled = $("bit").disabled = true; $("bas").title = $("bit").title = "Statik demoda hazır dönemler kullanılır"; }
     document.querySelector(".upload-card").hidden = !!d.demo;
     const v = d.veri, a = d.aralik;
@@ -175,16 +175,48 @@
   matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => state.data && drawChart(state.data.gunluk));
 
   // ---------------------------------------------------------------- Verine sor
+  // Sunuculu panelde ziyaretçi soru yazar (/api/sor). Statik demoda (GitHub Pages) sunucu ve anahtar
+  // yoktur: hazır sorular her gece gerçek modelle cevaplanıp veri/sorular.json olarak yayınlanır.
   const EXAMPLES = ["Bu hafta en çok kâr eden 3 ürün hangisi?", "Kargo cironun yüzde kaçını yiyor?",
                     "Zarar eden ürünlerim var mı?", "Ekim ayında net kârım ne kadardı?"];
-  $("askex").innerHTML = EXAMPLES.map(q => `<button type="button">${esc(q)}</button>`).join("");
+  let prepared = null;   // statik demoda {soru: cevap}
+
+  function renderAnswer(j, note = "") {
+    const out = $("askout");
+    if (j.durum === "cevaplanamaz") {
+      out.innerHTML = `<div class="answer"><p class="text">Bu soru elimdeki veriyle cevaplanamıyor.</p>
+        <p class="muted">${esc(j.aciklama)}</p>${note}</div>`;
+      return;
+    }
+    if (j.durum !== "ok") throw new Error(j.hata || "Soru cevaplanamadı");
+    const head = j.sutunlar.map(c => `<th>${esc(c)}</th>`).join("");
+    const body = j.satirlar.slice(0, 50).map(r => `<tr>${r.map(v => `<td>${esc(v)}</td>`).join("")}</tr>`).join("");
+    out.innerHTML = `<div class="answer">
+      ${j.cevap ? `<p class="text">${esc(j.cevap)}</p>` : ""}
+      <div class="tablewrap"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>
+      <details><summary>Nasıl hesaplandı? (SQL)</summary><p>${esc(j.aciklama)}</p><pre>${esc(j.sql)}</pre></details>
+      ${note}</div>`;
+  }
+
+  function showExamples(list) {
+    $("askex").innerHTML = list.map(q => `<button type="button">${esc(q)}</button>`).join("");
+  }
+
   $("askex").addEventListener("click", ev => {
-    if (ev.target.tagName === "BUTTON") { $("askq").value = ev.target.textContent; $("askform").requestSubmit(); }
+    if (ev.target.tagName !== "BUTTON") return;
+    const q = ev.target.textContent;
+    if (prepared) {
+      $("askex").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b === ev.target));
+      renderAnswer(prepared.items[q], prepared.note);
+    } else {
+      $("askq").value = q; $("askform").requestSubmit();
+    }
   });
+
   $("askform").addEventListener("submit", async ev => {
     ev.preventDefault();
     const q = $("askq").value.trim();
-    if (!q) return;
+    if (!q || prepared) return;
     const out = $("askout"), btn = ev.target.querySelector("button");
     btn.disabled = true;
     out.innerHTML = `<div class="answer muted">Düşünüyor… (birkaç saniye sürebilir)</div>`;
@@ -194,22 +226,31 @@
       if (r.status === 401) return toLogin();
       const j = await r.json();
       if (!r.ok) throw new Error(j.detail || "Soru cevaplanamadı");
-      if (j.durum === "cevaplanamaz") {
-        out.innerHTML = `<div class="answer"><p class="text">Bu soru elimdeki veriyle cevaplanamıyor.</p><p class="muted">${esc(j.aciklama)}</p></div>`;
-        return;
-      }
-      if (j.durum !== "ok") throw new Error(j.hata || "Soru cevaplanamadı");
-      const head = j.sutunlar.map(c => `<th>${esc(c)}</th>`).join("");
-      const body = j.satirlar.slice(0, 50).map(r => `<tr>${r.map(v => `<td>${esc(v)}</td>`).join("")}</tr>`).join("");
-      out.innerHTML = `<div class="answer">
-        ${j.cevap ? `<p class="text">${esc(j.cevap)}</p>` : ""}
-        <div class="tablewrap"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>
-        <details><summary>Nasıl hesaplandı? (SQL)</summary><p>${esc(j.aciklama)}</p><pre>${esc(j.sql)}</pre></details>
-      </div>`;
+      renderAnswer(j);
     } catch (e) {
       out.innerHTML = `<div class="answer"><p class="muted">${esc(e.message)}</p></div>`;
     } finally { btn.disabled = false; }
   });
+
+  async function loadPrepared() {
+    try {
+      const r = await fetch("veri/sorular.json");
+      if (!r.ok) return;                     // anahtar yoksa dosya üretilmez, kutu gizli kalır
+      const j = await r.json();
+      if (!j.sorular || !j.sorular.length) return;
+      prepared = {
+        items: Object.fromEntries(j.sorular.map(x => [x.soru, x])),
+        note: `<p class="muted prepared-note">Bu cevap ${esc(j.uretildi)} tarihinde gerçek modelle (${esc(j.model)}) üretildi.
+          Canlı demo sunucusuz olduğu için hazır sorular gösteriliyor; kendi sorunuzu yazmak için projeyi yerelde çalıştırın.</p>`,
+      };
+      $("askform").hidden = true;
+      $("askintro").hidden = false;
+      showExamples(j.sorular.map(x => x.soru));
+      $("askcard").hidden = false;
+    } catch (e) { /* hazır sorular yoksa kutu gizli kalır */ }
+  }
+
+  if (STATIK) loadPrepared(); else showExamples(EXAMPLES);
 
   load();
 })();
