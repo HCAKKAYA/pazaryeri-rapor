@@ -130,6 +130,12 @@ def test_summary(env):
     assert j7["aralik"]["gun"] == 7 and j7["aralik"]["onceki_bas"] == "2026-11-02"
     assert c.get("/api/ozet?bas=2026-11-01&bit=2027-01-01").json()["aralik"]["bit"] == "2026-11-15"
     assert c.get("/api/ozet?bas=2026-11-15&bit=2026-11-01").status_code == 400
+    # Örnek veri 8 hafta: 8 haftalık dönemin önceki eşi veride yok, değişim gösterilmemeli.
+    j56 = c.get("/api/ozet?bas=2026-09-21&bit=2026-11-15").json()
+    assert j56["aralik"]["onceki_tam"] is False
+    assert all(k["degisim"] is None for k in j56["kpi"]) and j56["kpi"][0]["onceki"] == "veri yok"
+    assert not any("Net kâr düştü" in u["baslik"] for u in j56["uyarilar"])
+    assert j7["aralik"]["onceki_tam"] is True
 
 
 def test_daily_sums_to_period(env):

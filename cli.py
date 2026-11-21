@@ -178,6 +178,12 @@ def cmd_parola(args) -> None:
         print(f"Yeni geçici parola: {pw}")
 
 
+def cmd_statik_demo(args) -> None:
+    from rapor import static_demo
+    files = static_demo.build(Path(args.cikti), make_pdf=not args.pdf_yok)
+    print(f"Statik demo -> {Path(args.cikti).resolve()} ({len(files)} dosya)")
+
+
 def main(argv=None) -> None:
     if sys.stdout is None:  # pythonw.exe ile (zamanlayıcıdan) çalışırken konsol yok
         sys.stdout = sys.stderr = open(os.devnull, "w", encoding="utf-8")
@@ -232,6 +238,11 @@ def main(argv=None) -> None:
     pd_.add_argument("--eposta", required=True)
     pd_.add_argument("--rastgele", action="store_true")
     pd_.set_defaults(fn=cmd_parola)
+
+    sd = sub.add_parser("statik-demo", help="GitHub Pages için statik demo üret")
+    sd.add_argument("--cikti", default=str(ROOT / "site"))
+    sd.add_argument("--pdf-yok", action="store_true")
+    sd.set_defaults(fn=cmd_statik_demo)
 
     args = ap.parse_args(argv)
     args.fn(args)

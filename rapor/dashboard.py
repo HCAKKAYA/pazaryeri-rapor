@@ -83,15 +83,18 @@ def summary(store: Store, start: date | None, end: date | None) -> dict:
     length = (end - start).days + 1
     pstart, pend = start - timedelta(days=length), start - timedelta(days=1)
 
+    # Önceki dönem verinin başlangıcından önceye taşıyorsa karşılaştırma yarım veriyle yapılır
+    # ve yanıltır; o durumda değişim gösterilmez.
+    prev_ok = pstart >= first
     cur = metrics.period(con, start, end)
     prev = metrics.period(con, pstart, pend)
     prod = metrics.products(con, start, end)
-    found = alerts_mod.build(cur, prev, prod)
+    found = alerts_mod.build(cur, prev if prev_ok else cur, prod)  # eksik önceki dönemle "düşüş" uyarısı üretme
     days = metrics.daily(con, start, end)
 
     def kpi(label, value, prev_value, fmt, change=True):
-        ch = metrics.pct_change(value, prev_value) if change else None
-        return {"ad": label, "deger": fmt(value), "onceki": fmt(prev_value),
+        ch = metrics.pct_change(value, prev_value) if (change and prev_ok) else None
+        return {"ad": label, "deger": fmt(value), "onceki": fmt(prev_value) if prev_ok else "veri yok",
                 "degisim": pct(ch, sign=True) if ch is not None else None,
                 "yon": None if ch is None else ("up" if ch > 0 else "down" if ch < 0 else "flat")}
 
@@ -99,7 +102,7 @@ def summary(store: Store, start: date | None, end: date | None) -> dict:
     return {
         "magaza": store.name,
         "aralik": {"bas": start.isoformat(), "bit": end.isoformat(), "gun": length,
-                   "onceki_bas": pstart.isoformat(), "onceki_bit": pend.isoformat()},
+                   "onceki_bas": pstart.isoformat(), "onceki_bit": pend.isoformat(), "onceki_tam": prev_ok},
         "veri": {
             "ilk_gun": first.isoformat(), "son_gun": last.isoformat(),
             "son_siparis": last_ts.strftime("%d.%m.%Y %H:%M") if last_ts else None,

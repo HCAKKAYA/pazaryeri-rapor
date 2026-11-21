@@ -34,6 +34,7 @@ def ensure_data(folder: Path, today: date | None = None) -> bool:
         except FileNotFoundError:
             pass
         folder.mkdir(parents=True, exist_ok=True)
-        sample.generate(folder, end=end, weeks=13)
+        # 26 hafta: en uzun hazır dönem (3 ay) ve önceki eşit dönemi birlikte kapsar.
+        sample.generate(folder, end=end, weeks=26)
         marker.write_text(end.isoformat(), encoding="utf-8")
         return True

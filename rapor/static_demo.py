@@ -1,0 +1,71 @@
+"""GitHub Pages için statik demo üretir.
+
+Sunucu yoktur: panelin hazır dönemleri (7 gün, 28 gün, 8 hafta, 3 ay) sunucudaki kodun
+aynısıyla (`dashboard.summary`, yani SQL) önceden hesaplanır ve JSON olarak yazılır. Panel bu
+dosyaları okur. Hesap mantığı tek yerde kalır; tarayıcıda ikinci bir kopyası yoktur.
+
+GitHub Actions her gece çalıştırır, böylece sentetik veri hep "dün"e kadar gelir.
+"""
+from __future__ import annotations
+
+import json
+import re
+import shutil
+import tempfile
+from datetime import date, timedelta
+from pathlib import Path
+
+from . import clean, dashboard, demo, pdf, pipeline
+
+ROOT = pipeline.ROOT
+PRESETS = (7, 28, 56, 91)
+
+
+def build(out: Path, today: date | None = None, make_pdf: bool = True) -> list[Path]:
+    out = Path(out)
+    if out.exists():
+        shutil.rmtree(out)
+    (out / "veri").mkdir(parents=True)
+    tmp = Path(tempfile.mkdtemp(prefix="statik-demo-"))
+    written: list[Path] = []
+    try:
+        folder = tmp / "gelen"
+        demo.ensure_data(folder, today)
+        end = demo.data_end(today)
+        mapping = clean.load_mapping(ROOT / "config" / "mapping.yaml")
+
+        store = dashboard.Store(demo.STORE_NAME, demo.STORE_SLUG, folder, "siparis*.xlsx", "urun*.csv")
+        store.refresh(mapping)
+        for days in PRESETS:
+            data = dashboard.summary(store, end - timedelta(days=days - 1), end)
+            data["demo"] = True
+            p = out / "veri" / f"ozet-{days}.json"
+            p.write_text(json.dumps(data, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+            written.append(p)
+        store.con.close()
+
+        # Son tam haftanın raporu (kural tabanlı özet; demo API anahtarı kullanmaz).
+        res = pipeline.run(demo.STORE_NAME, folder / "siparisler.xlsx", folder / "urunler.csv",
+                           use_ai=False, make_pdf=make_pdf, out_dir=tmp / "rapor", db_dir=tmp / "db")
+        shutil.copy(res.html, out / "rapor.html")
+        written.append(out / "rapor.html")
+        report_link = "rapor.html"
+        if res.pdf:
+            shutil.copy(res.pdf, out / "rapor.pdf")
+            written.append(out / "rapor.pdf")
+            report_link = "rapor.pdf"
+
+        html = (dashboard.TEMPLATES / "panel.html").read_text(encoding="utf-8")
+        html = html.replace("{{MAGAZA}}", demo.STORE_NAME).replace("<body>", '<body data-statik="1">', 1)
+        html = re.sub(r'\s*<form method="post" action="/cikis".*?</form>', "", html, count=1, flags=re.S)
+        html = html.replace('src="/static/panel.js"', 'src="panel.js"')
+        html = html.replace("veri her gün yeniden üretilir.",
+                            f'veri her gece yeniden üretilir. <a href="{report_link}">Bu haftanın raporu</a> ·', 1)
+        assert 'data-statik="1"' in html and "/cikis" not in html and 'src="panel.js"' in html
+        (out / "index.html").write_text(html, encoding="utf-8")
+        shutil.copy(dashboard.STATIC / "panel.js", out / "panel.js")
+        (out / ".nojekyll").write_text("", encoding="utf-8")
+        written += [out / "index.html", out / "panel.js"]
+        return written
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)

@@ -8,6 +8,7 @@
   const $ = id => document.getElementById(id);
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
+  const STATIK = document.body.dataset.statik === "1";
   let state = { bas: null, bit: null, days: 28, data: null, sort: { k: "net", dir: -1 } };
   let chart;
 
@@ -18,7 +19,8 @@
     if (state.bas) q.bas = state.bas;
     if (state.bit) q.bit = state.bit;
     try {
-      const r = await fetch(api("ozet", q));
+      // Statik demo (GitHub Pages): sunucu yok, dönemler önceden hesaplanıp JSON olarak yayınlanır.
+      const r = await fetch(STATIK ? `veri/ozet-${state.days}.json` : api("ozet", q));
       if (r.status === 401) return toLogin();
       const j = await r.json();
       if (!r.ok) throw new Error(j.detail || "Veri alınamadı");
@@ -30,6 +32,7 @@
 
   function render(d) {
     $("demobar").hidden = !d.demo;
+    if (STATIK) { $("bas").disabled = $("bit").disabled = true; $("bas").title = $("bit").title = "Statik demoda hazır dönemler kullanılır"; }
     document.querySelector(".upload-card").hidden = !!d.demo;
     const v = d.veri, a = d.aralik;
     const ageDays = Math.round((Date.now() - new Date(v.son_gun + "T23:59:59")) / 864e5);
@@ -37,7 +40,9 @@
       (ageDays > 7 ? ` · <span class="stale">${ageDays} gündür yeni veri yok</span>` : "");
     $("bas").value = a.bas; $("bit").value = a.bit;
     $("bas").min = $("bit").min = v.ilk_gun; $("bas").max = $("bit").max = v.son_gun;
-    $("rangenote").textContent = `${a.gun} gün; önceki dönem ${fmtDay(a.onceki_bas)} – ${fmtDay(a.onceki_bit)} ile karşılaştırılıyor`;
+    $("rangenote").textContent = a.onceki_tam
+      ? `${a.gun} gün; önceki dönem ${fmtDay(a.onceki_bas)} – ${fmtDay(a.onceki_bit)} ile karşılaştırılıyor`
+      : `${a.gun} gün; önceki eşit dönem için yeterli veri yok, karşılaştırma gösterilmiyor`;
 
     $("kpis").innerHTML = d.kpi.map((k, i) => `
       <div class="card kpi${i === 0 ? " hero" : ""}">

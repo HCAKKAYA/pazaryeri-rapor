@@ -10,3 +10,4 @@ deploy/gelen/
 deploy/.env
 deploy/magazalar.yaml
 gelen/
+site/
