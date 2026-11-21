@@ -1,122 +1,126 @@
-# Pazaryeri haftalık rapor
+# Pazaryeri Rapor
 
-Pazaryeri satıcısının dışa aktarım dosyalarından (siparişler + ürün/maliyet/stok) her hafta
-tek sayfalık bir rapor üretir: net kâr, haftalık değişim, uyarılar (stok, iade, zararına satış),
-ürün tablosu ve veri kalitesi notu.
+Trendyol, Hepsiburada gibi pazaryerlerinde satış yapan küçük işletmeler için haftalık kâr raporu ve satıcı paneli.
 
-## Kurulum
+Satıcı panelden sipariş dosyasını indiriyor, bu sistem dosyayı okuyup asıl merak edilen soruya cevap veriyor: komisyon, kargo ve ürün maliyeti düştükten sonra elde ne kaldı? Her pazartesi PDF ekli bir e-posta gidiyor; satıcı istediği zaman panele girip istediği döneme bakabiliyor.
+
+> Projedeki bütün veriler sentetiktir. Mağaza, ürünler ve siparişler örnek veri üreticisiyle oluşturuldu; gerçek bir satıcıya ait değildir.
+
+![Satıcı paneli](docs/img/panel.png)
+
+*English summary: a weekly profit report and seller dashboard for Turkish marketplace sellers. Python, DuckDB/SQL, FastAPI, Chart.js. All numbers are computed in SQL; an optional LLM layer only writes the commentary and every number it writes is checked against the computed figures. All data in this repo is synthetic.*
+
+## Neden
+
+Pazaryeri panelleri ciroyu gösteriyor ama satıcının cebine kalanı göstermiyor. Komisyon ürüne göre değişiyor, kargo her siparişte kesiliyor, iade edilen ürünün kargosu satıcıda kalıyor. Ciro artarken zarar eden bir ürünü panelden fark etmek zor. Bu proje o hesabı her hafta otomatik yapıyor ve dikkat gereken birkaç şeyi öne çıkarıyor:
+
+- stoğu biten ya da birkaç gün içinde bitecek ürünler,
+- komisyon ve kargodan sonra zararına satılan ürünler,
+- iade oranı yüksek ürünler,
+- net kârda haftalık düşüş.
+
+## Neler yapıyor
+
+| | |
+|---|---|
+| **Haftalık rapor** | HTML ve PDF. Net kâr, önceki haftayla karşılaştırma, uyarılar, son 8 haftanın grafiği, ürün tablosu ve veri kalitesi notu. |
+| **E-posta** | Telefonda okunacak kısa bir gövde, PDF eki. Varsayılan olarak yalnız taslak yazılır, gönderim ayrıca açılır. |
+| **Haftalık zamanlama** | Her pazartesi kendiliğinden çalışır. Veri güncel değilse eski raporu tekrar göndermez, aynı haftayı iki kez göndermez. |
+| **Satıcı paneli** | E-posta ve parolayla giriş. Dönem seçimi ve önceki eşit dönemle karşılaştırma, günlük net kâr grafiği, sıralanabilir ürün tablosu, dosya yükleme. |
+| **Yapay zeka yorumu** (isteğe bağlı) | Claude, hesaplanmış sayılardan 2-3 cümlelik bir özet ve öneriler yazar. Kapalıyken kural tabanlı özet kullanılır. |
+
+<table>
+<tr>
+<td width="62%"><img src="docs/img/rapor.png" alt="Haftalık rapor"></td>
+<td><img src="docs/img/eposta.png" alt="Haftalık e-posta, telefon görünümü"></td>
+</tr>
+<tr>
+<td>Haftalık rapor (PDF'e de basılır)</td>
+<td>Haftalık e-posta, telefonda</td>
+</tr>
+</table>
+
+## Nasıl çalışıyor
+
+```mermaid
+flowchart LR
+    A[Pazaryeri dışa aktarımı<br>Excel / CSV] --> B[clean.py<br>sütun eşleme, Türkçe sayı ve tarih,<br>çift ve eksik satır]
+    B --> C[(DuckDB)]
+    C --> D[metrics.py<br>bütün sayılar SQL ile]
+    D --> E[alerts.py<br>kurallar]
+    D --> F[narrative.py<br>isteğe bağlı YZ yorumu]
+    E --> G[Rapor: HTML + PDF]
+    F --> G
+    G --> H[E-posta]
+    D --> I[Satıcı paneli<br>FastAPI + Chart.js]
+```
+
+## Verdiğim kararlar
+
+**Sayıları yapay zeka hesaplamıyor.** Dil modelleri toplama ve yüzde hesabında hata yapabiliyor, rapordaki tek yanlış rakam da raporu değersiz kılar. Bu yüzden bütün sayılar `metrics.py` içinde SQL ile hesaplanıyor. Modele yalnız hazır, Türkçe biçimlenmiş sayılardan oluşan bir paket gidiyor ve modelin yazdığı metindeki her sayı bu paketle birebir karşılaştırılıyor. Pakette olmayan bir sayı yazarsa bir kez düzeltmesi isteniyor, yine olmazsa kural tabanlı özete dönülüyor. Bu denetimin bir sınırı var: sayının pakette olup olmadığına bakıyor, doğru ölçüye bağlanıp bağlanmadığına bakmıyor.
+
+**Kâr tanımı açıkça yazılı.** Net kâr = brüt satış − komisyon − kargo − ürün maliyeti. İade edilen siparişin kargosu satıcıda kalıyor, komisyonu geri dönüyor kabul edildi. KDV ve reklam gideri henüz hesapta yok. Bu varsayımlar raporun altında da yazıyor, çünkü gerçek bir satıcıyla doğrulanmaları gerekiyor.
+
+**Türkçe dışa aktarımların pürüzleri.** `1.234,56` gibi sayılar, `%18` gibi oranlar, `gg.aa.yyyy` tarihleri, çift satırlar ve boş satırlar ayrı ayrı ele alınıyor. Okunan ve atlanan satırlar raporun sonundaki veri kalitesi notunda gösteriliyor.
+
+**Sütun eşleme yapılandırmada.** Gerçek bir pazaryeri dosyasının sütun adları farklı çıkacak. Bu durumda yalnız `config/mapping.yaml` değişiyor, kod değişmiyor.
+
+**Kişisel veri saklanmıyor.** Sipariş dosyalarında müşteri adı, adres ve telefon olabilir. Panelden yüklenen dosyadan yalnız raporun kullandığı sütunlar saklanıyor, ham dosya siliniyor.
+
+**Panel güvenliği.** Parolalar scrypt ile saklanıyor, veritabanında oturum belirtecinin yalnız özeti duruyor, hatalı giriş 15 dakikada 5 denemeyle sınırlı, başka siteden gelen form istekleri reddediliyor ve sayfa bir içerik güvenlik politikasıyla (CSP) sunuluyor. Kayıt yok; hesabı yönetici açıyor ve her kullanıcı yalnız kendi mağazasını görüyor.
+
+**Gönderim varsayılan olarak kapalı.** Raporlar önce taslak olarak yazılıyor. Yanlış ya da eksik bir raporun satıcıya kendiliğinden gitmemesi, otomasyonun hızından daha önemli.
+
+## Karşılaştığım sorunlar
+
+- **Değişen yuvarlama.** Aynı veri, iki çalıştırmada bir üründe 11.497 ₺, diğerinde 11.498 ₺ gösterdi. Kayan noktalı toplamlar, toplama sırasına göre ,5 sınırının bir altında ya da üstünde kalabiliyordu. Biçimlendirme önce kuruşa, sonra yukarı yuvarlayacak şekilde değiştirildi.
+- **Giriş formu reddediliyordu.** Panel otomatik testlerden geçti ama gerçek tarayıcıda giriş yapılamadı. Sayfa `Referrer-Policy: no-referrer` ile sunulunca tarayıcı formu `Origin: null` başlığıyla gönderiyor, CSRF denetimi de bunu yabancı kaynak sayıyordu. Politika `same-origin` yapıldı. Test istemcisi Origin başlığı göndermediği için bu hatayı ancak tarayıcıda denemek gösterdi.
+- **Türkçe büyük harf.** Python'da `"kritik".upper()` sonucu `KRITIK` oluyor. Uyarı etiketleri için ayrı bir Türkçe karşılık tablosu kullanıldı.
+
+## Teknoloji
+
+Python 3.12, pandas, DuckDB, Jinja2, matplotlib, FastAPI, Chart.js, Anthropic API (isteğe bağlı), pytest. PDF için kurulu Chrome ya da Edge başsız modda kullanılıyor, ek kurulum gerekmiyor. Sunucu kurulumu için Dockerfile ve Caddy (otomatik HTTPS) ayarları `deploy/` klasöründe.
+
+<table>
+<tr>
+<td width="50%"><img src="docs/img/panel-koyu.png" alt="Panel, koyu tema"></td>
+<td width="22%"><img src="docs/img/panel-mobil.png" alt="Panel, telefon"></td>
+<td><img src="docs/img/giris.png" alt="Giriş ekranı"></td>
+</tr>
+</table>
+
+## Çalıştırma
 
 ```powershell
 py -3 -m venv .venv
 .venv\Scripts\python -m pip install -r requirements.txt
+
+.venv\Scripts\python cli.py ornek                 # sentetik veri üretir
+.venv\Scripts\python cli.py calistir              # raporlar/ altına HTML ve PDF yazar
+
+.venv\Scripts\python cli.py kullanici-ekle --eposta demo@example.com --magaza "Örnek Mağaza"
+.venv\Scripts\python cli.py panel                 # http://127.0.0.1:8791
+
+.venv\Scripts\python -m pytest -q                 # 62 test
 ```
 
-## Kullanım
+E-posta, haftalık zamanlama, yapay zeka yorumu ve sunucu kurulumu için: [docs/KULLANIM.md](docs/KULLANIM.md), [deploy/KURULUM.md](deploy/KURULUM.md).
 
-```powershell
-.venv\Scripts\python cli.py ornek        # sentetik veri: sample_data/
-.venv\Scripts\python cli.py calistir     # rapor: raporlar/<mağaza>-<hafta>.html
-.venv\Scripts\python cli.py calistir --siparis siparisler.xlsx --urun urunler.csv --magaza "Mağaza Adı" --hafta 2026-W46
-.venv\Scripts\python -m pytest -q
+## Durum ve sonraki adımlar
+
+Proje bir portfolyo çalışması olarak geliştiriliyor ve uçtan uca çalışıyor. Gerçek bir satıcı verisiyle henüz denenmedi. Sıradaki işler:
+
+- gerçek bir pazaryeri dosyasıyla sütun eşlemesini ve kâr varsayımlarını doğrulamak,
+- dosya yükleme adımını kaldırmak için pazaryeri API bağlantısı,
+- herkese açık, sentetik veriyle çalışan bir canlı demo.
+
+## Dosya yapısı
+
 ```
-
-## PDF ve e-posta
-
-Her çalıştırmada HTML'in yanına PDF yazılır (bilgisayardaki Chrome ya da Edge ile, ek kurulum yok;
-`--pdf-yok` kapatır, başka tarayıcı için `RAPOR_TARAYICI`).
-
-`--alici` verilirse e-posta hazırlanır: kısa HTML gövde (net kâr, özet, uyarılar) + düz metin + PDF eki.
-Varsayılan olarak **gönderilmez**, `raporlar/<mağaza>-<hafta>.eml` taslağı yazılır; Outlook ile açılıp
-kontrol edilebilir. Gerçek gönderim için `--gonder` ve SMTP ayarları gerekir:
-
-```powershell
-$env:SMTP_SUNUCU = "smtp.gmail.com"; $env:SMTP_PORT = "587"
-$env:SMTP_KULLANICI = "adres@gmail.com"; $env:SMTP_PAROLA = "<uygulama şifresi>"
-.venv\Scripts\python cli.py calistir --alici satici@ornek.com --gonder
+rapor/          temizlik, metrikler, uyarılar, yorum, rapor, PDF, e-posta, panel, giriş
+config/         sütun eşleme ve mağaza ayarları
+tests/          62 test
+deploy/         Docker ve Caddy ile sunucu kurulumu
+tools/          README ekran görüntülerini yeniden üreten betik
+docs/           kullanım kılavuzu ve görseller
 ```
-
-Gmail normal parolayı kabul etmez; Google hesabında 2 adımlı doğrulama açıp "uygulama şifresi" üretmek gerekir.
-
-## Haftalık otomatik çalışma
-
-`config/magazalar.yaml` mağazaları, dosya klasörlerini, alıcıları ve SMTP ayarlarını tutar (parola hariç).
-
-```powershell
-.venv\Scripts\python cli.py sifre-kaydet                 # parola Windows Kimlik Yöneticisi'ne, bir kez
-.venv\Scripts\python cli.py haftalik --deneme            # hiçbir şey göndermeden dener
-.venv\Scripts\python cli.py zamanla --gun Monday --saat 08:00
-.venv\Scripts\python cli.py zamanla --kaldir
-```
-
-Görev her pazartesi 08:00'de `cli.py haftalik` çalıştırır; bilgisayar kapalıysa açıldığında çalışır. Kurallar:
-- Klasördeki desene uyan **en yeni** sipariş ve ürün dosyası kullanılır.
-- Dosyadaki son tam hafta beklenen hafta değilse (satıcı yeni dosya koymamışsa) rapor **gönderilmez**.
-- Aynı mağaza ve hafta iki kez gönderilmez (`data/gonderilenler.json`); `--zorla` bunu geçer.
-- `gonder: false` olan mağaza için yalnız taslak yazılır.
-- Bir mağazadaki hata diğerlerini durdurmaz; her şey `logs/haftalik-<tarih>.log` dosyasına yazılır.
-
-Sınır: veriyi hâlâ birinin klasöre koyması gerekiyor. Pazaryeri API bağlantısı gelene kadar bu elle.
-
-## Satıcı paneli
-
-```powershell
-.venv\Scripts\python cli.py kullanici-ekle --eposta satici@ornek.com --magaza "Örnek Mağaza"   # geçici parola yazar
-.venv\Scripts\python cli.py panel        # http://127.0.0.1:8791
-.venv\Scripts\python cli.py kullanicilar
-.venv\Scripts\python cli.py parola --eposta satici@ornek.com --rastgele
-```
-
-Giriş e-posta ve parolayla (`rapor/auth.py`): scrypt parola özeti, veritabanında yalnız özeti tutulan
-oturum belirteci, HttpOnly/SameSite çerez, 15 dakikada 5 hatalı deneme sınırı, başka siteden gelen
-form isteklerinin reddi, CSP ve diğer güvenlik başlıkları. Kayıt yok; kullanıcıyı yönetici açar ve
-her kullanıcı yalnız kendi mağazasını görür. İnternete açma adımları: [deploy/KURULUM.md](deploy/KURULUM.md).
-
-Panelde: dönem seçimi (7 gün / 28 gün / 8 hafta / 3 ay / özel tarih) ve önceki eşit dönemle karşılaştırma,
-6 KPI, günlük net kâr grafiği, uyarılar, sıralanabilir ürün tablosu, veri tazeliği ve dosya yükleme.
-
-- Veri "anlık" değil: en son yüklenen dosya kadar güncel; panel son sipariş zamanını gösterir.
-- Satıcı dışa aktarım dosyasını panelden yükleyebilir. Dosya önce okunup denetlenir; okunamazsa
-  klasöre girmez, eski veri bozulmaz. Yüklenen dosya haftalık rapor da kullanır.
-- Yüklenen dosyadan yalnız raporun kullandığı sütunlar saklanır (KVKK: müşteri adı, adres, telefon diske yazılmaz).
-
-## Akış
-
-`clean.py` (sütun eşleme, Türkçe sayı/tarih, çift ve eksik satır) → `storage.py` (DuckDB)
-→ `metrics.py` (tüm sayılar SQL ile) → `alerts.py` (kurallar) → `report.py` + `charts.py` (HTML).
-
-Gerçek dışa aktarım gelince yalnız `config/mapping.yaml` içindeki sütun adları değişir.
-
-## Yapay zeka yorumu
-
-`narrative.py` hesaplanmış sayıları Türkçe biçimlenmiş bir olgu paketine koyar ve Claude'a
-(`claude-opus-5-5`, effort `medium`, JSON şemalı çıktı) gönderir. Model sayı hesaplamaz:
-yanıttaki her sayı paketle karşılaştırılır; uymayan sayı varsa bir kez düzeltme istenir,
-yine uymazsa kural tabanlı özet kullanılır. Model güvenlik gerekçesiyle reddederse sunucu
-isteği önerilen başka modelde yeniden dener (`fallbacks: "default"`).
-
-Kimlik bilgisi yoksa rapor yine üretilir, özet kural tabanlı olur. Açmak için:
-
-```powershell
-$env:ANTHROPIC_API_KEY = "<anahtar>"
-.venv\Scripts\python cli.py calistir
-```
-
-`--yz-yok` yapay zekayı kapatır. Modele kişisel veri gitmez; yalnız haftalık toplamlar ve ürün adları.
-
-Sınır: denetim sayının pakette *var olduğunu* kontrol eder, doğru ölçüye bağlandığını değil
-(ör. net kârı brüt satış diye yazması yakalanmaz). İlk gerçek yanıtlar elle okunmalı.
-
-## Doğrulanacak varsayımlar
-
-- Sentetik dosyanın sütun adları gerçek Trendyol/Hepsiburada dışa aktarımına ait değil.
-- Kargo sipariş başına bir kez sayılıyor; iade siparişinde satıcıda kalıyor.
-- İadede komisyon geri dönüyor.
-- KDV, reklam gideri, ceza/kesinti henüz yok.
-- Uyarı eşikleri (`alerts.py` başı) satıcıyla konuşulup ayarlanacak.
-
-## Sonraki adımlar
-
-1. Gerçek bir satıcıdan dışa aktarım dosyası; mapping ve varsayımların doğrulanması.
-2. Yapay zeka yorumunu gerçek API anahtarıyla deneyip ilk yanıtları elle okumak.
-3. Kendi adresine gerçek bir deneme gönderimi; Gmail/Outlook'ta görünümün kontrolü.
-4. Pazaryeri API bağlantısı (dosyayı elle koyma adımını kaldırmak için).
