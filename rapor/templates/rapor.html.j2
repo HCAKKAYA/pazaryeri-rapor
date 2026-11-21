@@ -39,6 +39,10 @@
   th:first-child, td:first-child { text-align:left; }
   th { color:var(--ink2); font-weight:600; }
   .neg { color:var(--crit); }
+  .ozet { font-size:16px; margin:0 0 10px; }
+  .oneriler { margin:0 0 6px; padding-left:22px; } .oneriler li { margin:6px 0; }
+  .oneriler b { margin-right:4px; }
+  .kaynak { color:var(--ink2); font-size:12px; margin:4px 0 0; }
   .foot { margin-top:32px; color:var(--ink2); font-size:12px; }
   .foot ul { padding-left:18px; margin:6px 0; }
   @media (max-width:600px) { .page { padding:20px 16px; margin:0; border-radius:0; }
@@ -64,6 +68,21 @@
     <div class="tile"><div class="lbl">Sepet ortalaması</div><div class="val">{{ tl(cur.avg_basket) }}</div><div class="d">{{ pct(ch.avg_basket, sign=True) }}</div></div>
     <div class="tile"><div class="lbl">Kâr marjı</div><div class="val">{{ pct(cur.margin) }}</div><div class="d">geçen hafta {{ pct(prev.margin) }}</div></div>
   </div>
+
+  {% if narrative %}
+  <h2>Bu haftanın özeti</h2>
+  <p class="ozet">{{ narrative.ozet }}</p>
+  {# Kural tabanlı özette öneriler uyarı kutularının tekrarı olur; yalnız YZ önerilerini göster. #}
+  {% if narrative.oneriler and narrative.kaynak == 'yapay zeka' %}
+  <ol class="oneriler">
+    {% for o in narrative.oneriler %}<li><b>{{ o.baslik }}</b> {{ o.aciklama }}</li>{% endfor %}
+  </ol>
+  {% endif %}
+  <p class="kaynak">
+    {% if narrative.kaynak == 'yapay zeka' %}Bu yorumu yapay zeka yazdı; içindeki her sayı rapordaki hesaplarla birebir denetlendi.
+    {% else %}Otomatik özet (kural tabanlı){% if narrative.not_ %}: {{ narrative.not_ }}{% endif %}.{% endif %}
+  </p>
+  {% endif %}
 
   {% if alerts %}
   <h2>Bu hafta bakılması gerekenler</h2>

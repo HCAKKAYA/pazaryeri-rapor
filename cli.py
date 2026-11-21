@@ -11,7 +11,7 @@ import sys
 from datetime import timedelta
 from pathlib import Path
 
-from rapor import alerts, clean, metrics, report, sample, storage
+from rapor import alerts, clean, metrics, narrative, report, sample, storage
 from rapor.fmt import tl
 
 ROOT = Path(__file__).parent
@@ -46,7 +46,14 @@ def cmd_calistir(args) -> None:
     prod = metrics.products(con, start, end)
     found = alerts.build(cur, prev, prod)
 
-    html = report.render(args.magaza, week, cur, prev, series, prod, found, q)
+    facts = narrative.build_facts(week, cur, prev, series, prod, found)
+    if args.yz_yok:
+        story = narrative.rule_based(facts, found, "yapay zeka kapalı (--yz-yok)")
+    else:
+        story = narrative.write(facts, found)
+    print(f"Yorum: {story.kaynak}" + (f" ({story.not_})" if story.not_ else ""))
+
+    html = report.render(args.magaza, week, cur, prev, series, prod, found, q, story)
     out = ROOT / "raporlar" / f"{slug}-{week}.html"
     out.parent.mkdir(exist_ok=True)
     out.write_text(html, encoding="utf-8")
@@ -62,6 +69,7 @@ def main(argv=None) -> None:
     r.add_argument("--urun")
     r.add_argument("--magaza", default="Örnek Mağaza")
     r.add_argument("--hafta", help="ISO hafta, ör. 2026-W46; boşsa verideki son tam hafta")
+    r.add_argument("--yz-yok", action="store_true", help="yapay zeka yorumu yerine kural tabanlı özet")
     r.set_defaults(fn=cmd_calistir)
     args = ap.parse_args(argv)
     args.fn(args)

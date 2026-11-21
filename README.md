@@ -8,7 +8,7 @@ tek sayfalık bir rapor üretir: net kâr, haftalık değişim, uyarılar (stok,
 
 ```powershell
 py -3 -m venv .venv
-.venv\Scripts\python -m pip install duckdb pandas jinja2 matplotlib openpyxl pyyaml pytest
+.venv\Scripts\python -m pip install duckdb pandas jinja2 matplotlib openpyxl pyyaml pytest anthropic
 ```
 
 ## Kullanım
@@ -27,6 +27,26 @@ py -3 -m venv .venv
 
 Gerçek dışa aktarım gelince yalnız `config/mapping.yaml` içindeki sütun adları değişir.
 
+## Yapay zeka yorumu
+
+`narrative.py` hesaplanmış sayıları Türkçe biçimlenmiş bir olgu paketine koyar ve Claude'a
+(`claude-opus-5-5`, effort `medium`, JSON şemalı çıktı) gönderir. Model sayı hesaplamaz:
+yanıttaki her sayı paketle karşılaştırılır; uymayan sayı varsa bir kez düzeltme istenir,
+yine uymazsa kural tabanlı özet kullanılır. Model güvenlik gerekçesiyle reddederse sunucu
+isteği önerilen başka modelde yeniden dener (`fallbacks: "default"`).
+
+Kimlik bilgisi yoksa rapor yine üretilir, özet kural tabanlı olur. Açmak için:
+
+```powershell
+$env:ANTHROPIC_API_KEY = "<anahtar>"
+.venv\Scripts\python cli.py calistir
+```
+
+`--yz-yok` yapay zekayı kapatır. Modele kişisel veri gitmez; yalnız haftalık toplamlar ve ürün adları.
+
+Sınır: denetim sayının pakette *var olduğunu* kontrol eder, doğru ölçüye bağlandığını değil
+(ör. net kârı brüt satış diye yazması yakalanmaz). İlk gerçek yanıtlar elle okunmalı.
+
 ## Doğrulanacak varsayımlar
 
 - Sentetik dosyanın sütun adları gerçek Trendyol/Hepsiburada dışa aktarımına ait değil.
@@ -38,5 +58,5 @@ Gerçek dışa aktarım gelince yalnız `config/mapping.yaml` içindeki sütun a
 ## Sonraki adımlar
 
 1. Gerçek bir satıcıdan dışa aktarım dosyası; mapping ve varsayımların doğrulanması.
-2. Yapay zeka yorum katmanı: yalnız hesaplanmış sayıları alır, Türkçe özet yazar; çıktıdaki her sayı tabloyla karşılaştırılır.
+2. Yapay zeka yorumunu gerçek API anahtarıyla deneyip ilk yanıtları elle okumak.
 3. PDF ve e-posta ile haftalık gönderim.
