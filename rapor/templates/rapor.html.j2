@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Haftalık rapor · {{ store }} · {{ week }}</title>
+<style>
+  :root { --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --line:#e4e3df;
+          --crit:#c62f2e; --warn:#a86b00; --info:#52514e; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#f0efec; color:var(--ink);
+         font:15px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif; }
+  .page { max-width:760px; margin:24px auto; background:var(--surface); padding:32px 36px;
+          border:1px solid var(--line); border-radius:10px; }
+  h1 { font-size:22px; margin:0 0 2px; }
+  h2 { font-size:16px; margin:32px 0 10px; }
+  .sub { color:var(--ink2); margin:0 0 24px; }
+  .hero { display:flex; gap:28px; flex-wrap:wrap; align-items:flex-end;
+          padding:18px 0 22px; border-bottom:1px solid var(--line); }
+  .hero .big { font-size:40px; font-weight:700; letter-spacing:-0.5px; line-height:1; }
+  .hero .lbl { color:var(--ink2); font-size:13px; margin-bottom:6px; }
+  .delta { font-size:14px; color:var(--ink2); margin-top:6px; }
+  .tiles { display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; margin-top:18px; }
+  .tile { border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
+  .tile .lbl { color:var(--ink2); font-size:12px; }
+  .tile .val { font-size:18px; font-weight:600; }
+  .tile .d { font-size:12px; color:var(--ink2); }
+  .alert { display:flex; gap:10px; padding:10px 12px; border-left:3px solid; margin:8px 0;
+           background:#f6f5f2; border-radius:0 6px 6px 0; }
+  .alert.kritik { border-color:var(--crit); } .alert.uyarı { border-color:var(--warn); }
+  .alert.bilgi { border-color:var(--info); }
+  .alert .tag { font-size:11px; font-weight:700; text-transform:uppercase; min-width:52px; padding-top:2px; }
+  .alert.kritik .tag { color:var(--crit); } .alert.uyarı .tag { color:var(--warn); }
+  .alert.bilgi .tag { color:var(--info); }
+  .alert b { display:block; }
+  img { width:100%; height:auto; display:block; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { padding:6px 8px; border-bottom:1px solid var(--line); text-align:right; }
+  th:first-child, td:first-child { text-align:left; }
+  th { color:var(--ink2); font-weight:600; }
+  .neg { color:var(--crit); }
+  .foot { margin-top:32px; color:var(--ink2); font-size:12px; }
+  .foot ul { padding-left:18px; margin:6px 0; }
+  @media (max-width:600px) { .page { padding:20px 16px; margin:0; border-radius:0; }
+    .tiles { grid-template-columns:repeat(2, 1fr); } }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>{{ store }} · haftalık rapor</h1>
+  <p class="sub">{{ cur.start.strftime('%d.%m.%Y') }} – {{ cur.end.strftime('%d.%m.%Y') }} ({{ week }})</p>
+
+  <div class="hero">
+    <div>
+      <div class="lbl">Net kâr (komisyon, kargo ve maliyet sonrası)</div>
+      <div class="big">{{ tl(cur.net_profit) }}</div>
+      <div class="delta">Geçen hafta {{ tl(prev.net_profit) }} · {{ pct(ch.net_profit, sign=True) }}</div>
+    </div>
+  </div>
+
+  <div class="tiles">
+    <div class="tile"><div class="lbl">Brüt satış</div><div class="val">{{ tl(cur.gross) }}</div><div class="d">{{ pct(ch.gross, sign=True) }}</div></div>
+    <div class="tile"><div class="lbl">Sipariş</div><div class="val">{{ num(cur.orders) }}</div><div class="d">{{ pct(ch.orders, sign=True) }}</div></div>
+    <div class="tile"><div class="lbl">Sepet ortalaması</div><div class="val">{{ tl(cur.avg_basket) }}</div><div class="d">{{ pct(ch.avg_basket, sign=True) }}</div></div>
+    <div class="tile"><div class="lbl">Kâr marjı</div><div class="val">{{ pct(cur.margin) }}</div><div class="d">geçen hafta {{ pct(prev.margin) }}</div></div>
+  </div>
+
+  {% if alerts %}
+  <h2>Bu hafta bakılması gerekenler</h2>
+  {% for a in alerts %}
+  <div class="alert {{ a.level }}"><span class="tag">{{ a.level }}</span><div><b>{{ a.title }}</b>{{ a.detail }}</div></div>
+  {% endfor %}
+  {% endif %}
+
+  <h2>Son 8 hafta net kâr</h2>
+  <img alt="Son 8 haftanın net kârı; bu hafta koyu renkte" src="data:image/png;base64,{{ chart_weekly }}">
+
+  <h2>Ürün bazında net kâr (bu hafta)</h2>
+  <img alt="Ürünlere göre bu haftanın net kârı" src="data:image/png;base64,{{ chart_products }}">
+
+  <h2>Ürün tablosu</h2>
+  <table>
+    <tr><th>Ürün</th><th>Adet</th><th>Brüt</th><th>Net kâr</th><th>İade (28 g)</th><th>Stok</th><th>Kaç gün yeter</th></tr>
+    {% for r in products %}
+    <tr>
+      <td>{{ r.name }}</td><td>{{ num(r.units) }}</td><td>{{ tl(r.gross) }}</td>
+      <td class="{{ 'neg' if r.net_profit < 0 else '' }}">{{ tl(r.net_profit) }}</td>
+      <td>{{ pct(r.return_rate_28d) if r.return_rate_28d == r.return_rate_28d else '—' }}</td>
+      <td>{{ num(r.stock) if r.stock == r.stock else '—' }}</td>
+      <td>{{ num(r.stock_days) if r.stock_days == r.stock_days else '—' }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  <div class="foot">
+    <b>Hesap notları.</b> Net kâr = brüt satış − komisyon − kargo − ürün maliyeti. KDV ve reklam gideri dahil değil.
+    İade siparişlerinde kargo satıcıya kalır, komisyon geri döner kabul edildi. Stok süresi son 28 günün satış hızıyla hesaplandı.
+    {% if quality %}<ul>{% for n in quality %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
+    Okunan {{ q.rows_read }} satırdan {{ q.rows_used }} tanesi kullanıldı.
+  </div>
+</div>
+</body>
+</html>

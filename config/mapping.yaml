@@ -1,0 +1,27 @@
+# Pazaryeri dışa aktarım dosyasının sütunlarını ortak şemaya bağlar.
+# Buradaki sütun adları SENTETİK örnek veriye aittir; gerçek Trendyol/Hepsiburada
+# dışa aktarımı gelince yalnız sağ taraftaki adlar değiştirilir, kod değişmez.
+
+orders:
+  order_id: "Sipariş No"
+  order_date: "Sipariş Tarihi"
+  barcode: "Barkod"
+  product_name: "Ürün Adı"
+  quantity: "Adet"
+  unit_price: "Birim Fiyat"
+  commission_rate: "Komisyon Oranı"
+  shipping_fee: "Kargo Ücreti"
+  status: "Durum"
+
+# Durum metinleri -> ortak durum. Listede olmayan bir durum gelirse veri kalitesi
+# bölümünde raporlanır ve satır hesaplara girmez.
+status_values:
+  delivered: ["Teslim Edildi", "Kargoda", "Hazırlanıyor"]
+  returned: ["İade Edildi", "İade"]
+  cancelled: ["İptal Edildi", "İptal"]
+
+products:
+  barcode: "Barkod"
+  product_name: "Ürün Adı"
+  cost: "Birim Maliyet"
+  stock: "Stok"
