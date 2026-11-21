@@ -1,16 +1,24 @@
-"""Türkçe sayı biçimleri."""
+"""Türkçe sayı biçimleri.
+
+Yuvarlama önce kuruşa, sonra yarımlar yukarı yapılır. Böylece float toplamındaki
+küçük farklar (11497.4999 / 11497.5000) aynı veride farklı rakam göstermez.
+"""
 from __future__ import annotations
+
+from decimal import ROUND_HALF_UP, Decimal
 
 
 def _tr(x: float, decimals: int) -> str:
-    return f"{x:,.{decimals}f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    q = Decimal(1).scaleb(-decimals)
+    d = Decimal(str(round(x, 4))).quantize(q, rounding=ROUND_HALF_UP)
+    return f"{d:,.{decimals}f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 
 def tl(x: float | None, decimals: int = 0) -> str:
     if x is None:
         return "—"
     s = _tr(abs(x), decimals) + " ₺"
-    return "−" + s if x < 0 else s
+    return "−" + s if _tr(abs(x), decimals).strip("0,.") and x < 0 else s
 
 
 def num(x: float | None, decimals: int = 0) -> str:

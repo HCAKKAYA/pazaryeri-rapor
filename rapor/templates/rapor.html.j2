@@ -45,6 +45,15 @@
   .kaynak { color:var(--ink2); font-size:12px; margin:4px 0 0; }
   .foot { margin-top:32px; color:var(--ink2); font-size:12px; }
   .foot ul { padding-left:18px; margin:6px 0; }
+  @page { size:A4; margin:12mm 12mm 14mm; }
+  @media print {
+    body { background:#fff; font-size:12.5px; }
+    .page { margin:0; padding:0; border:0; max-width:none; border-radius:0; background:#fff; }
+    .hero .big { font-size:34px; }
+    h2 { margin-top:22px; break-after:avoid; }
+    .alert, tr, .tile, img, .oneriler li { break-inside:avoid; }
+    * { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  }
   @media (max-width:600px) { .page { padding:20px 16px; margin:0; border-radius:0; }
     .tiles { grid-template-columns:repeat(2, 1fr); } }
 </style>

@@ -20,6 +20,23 @@ py -3 -m venv .venv
 .venv\Scripts\python -m pytest -q
 ```
 
+## PDF ve e-posta
+
+Her çalıştırmada HTML'in yanına PDF yazılır (bilgisayardaki Chrome ya da Edge ile, ek kurulum yok;
+`--pdf-yok` kapatır, başka tarayıcı için `RAPOR_TARAYICI`).
+
+`--alici` verilirse e-posta hazırlanır: kısa HTML gövde (net kâr, özet, uyarılar) + düz metin + PDF eki.
+Varsayılan olarak **gönderilmez**, `raporlar/<mağaza>-<hafta>.eml` taslağı yazılır; Outlook ile açılıp
+kontrol edilebilir. Gerçek gönderim için `--gonder` ve SMTP ayarları gerekir:
+
+```powershell
+$env:SMTP_SUNUCU = "smtp.gmail.com"; $env:SMTP_PORT = "587"
+$env:SMTP_KULLANICI = "adres@gmail.com"; $env:SMTP_PAROLA = "<uygulama şifresi>"
+.venv\Scripts\python cli.py calistir --alici satici@ornek.com --gonder
+```
+
+Gmail normal parolayı kabul etmez; Google hesabında 2 adımlı doğrulama açıp "uygulama şifresi" üretmek gerekir.
+
 ## Akış
 
 `clean.py` (sütun eşleme, Türkçe sayı/tarih, çift ve eksik satır) → `storage.py` (DuckDB)
@@ -59,4 +76,5 @@ Sınır: denetim sayının pakette *var olduğunu* kontrol eder, doğru ölçüy
 
 1. Gerçek bir satıcıdan dışa aktarım dosyası; mapping ve varsayımların doğrulanması.
 2. Yapay zeka yorumunu gerçek API anahtarıyla deneyip ilk yanıtları elle okumak.
-3. PDF ve e-posta ile haftalık gönderim.
+3. Kendi adresine gerçek bir deneme gönderimi; Gmail/Outlook'ta görünümün kontrolü.
+4. Haftalık zamanlama (Windows Görev Zamanlayıcı, sonra sunucu).

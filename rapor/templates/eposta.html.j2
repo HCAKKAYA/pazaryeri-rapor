@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="tr">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{{ subject }}</title></head>
+<body style="margin:0;padding:0;background:#f0efec;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f0efec;">
+<tr><td align="center" style="padding:20px 12px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border:1px solid #e4e3df;border-radius:8px;font-family:'Segoe UI',Arial,sans-serif;color:#0b0b0b;">
+  <tr><td style="padding:24px 24px 4px;">
+    <div style="font-size:13px;color:#52514e;">{{ store }} · {{ cur.start.strftime('%d.%m') }}–{{ cur.end.strftime('%d.%m.%Y') }}</div>
+    <div style="font-size:13px;color:#52514e;margin-top:14px;">Net kâr</div>
+    <div style="font-size:32px;font-weight:700;line-height:1.1;">{{ tl(cur.net_profit) }}</div>
+    <div style="font-size:14px;color:#52514e;margin-top:4px;">Geçen hafta {{ tl(prev.net_profit) }} · {{ pct(ch_net, sign=True) }}</div>
+  </td></tr>
+  <tr><td style="padding:14px 24px 0;font-size:15px;line-height:1.5;">{{ narrative.ozet }}</td></tr>
+  {% if narrative.kaynak == 'yapay zeka' and narrative.oneriler %}
+  <tr><td style="padding:10px 24px 0;font-size:14px;line-height:1.5;">
+    {% for o in narrative.oneriler %}<div style="margin:6px 0;"><b>{{ loop.index }}. {{ o.baslik }}</b> {{ o.aciklama }}</div>{% endfor %}
+  </td></tr>
+  {% endif %}
+  {% if alerts %}
+  <tr><td style="padding:16px 24px 0;">
+    <div style="font-size:14px;font-weight:600;margin-bottom:6px;">Bakılması gerekenler</div>
+    {% for a in alerts if a.level != 'bilgi' %}
+    <div style="border-left:3px solid {{ '#c62f2e' if a.level == 'kritik' else '#a86b00' }};background:#f6f5f2;padding:8px 10px;margin:6px 0;font-size:13.5px;line-height:1.45;">
+      <span style="font-size:11px;font-weight:700;color:{{ '#c62f2e' if a.level == 'kritik' else '#a86b00' }};">{{ a.label }}</span>
+      <b style="margin-left:6px;">{{ a.title }}</b><br>{{ a.detail }}
+    </div>
+    {% endfor %}
+  </td></tr>
+  {% endif %}
+  <tr><td style="padding:18px 24px 22px;font-size:12.5px;color:#52514e;line-height:1.5;">
+    Grafikler ve ürün tablosu ekteki PDF'te.
+    {% if narrative.kaynak == 'yapay zeka' %}Özeti yapay zeka yazdı; içindeki her sayı rapordaki hesaplarla denetlendi.{% endif %}
+  </td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>

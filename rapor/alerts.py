@@ -21,6 +21,11 @@ class Alert:
     detail: str
 
     @property
+    def label(self) -> str:
+        """Türkçe büyük harf (Python'un upper()'ı 'i'yi 'I' yapar)."""
+        return {"kritik": "KRİTİK", "uyarı": "UYARI", "bilgi": "BİLGİ"}[self.level]
+
+    @property
     def rank(self) -> int:
         return {"kritik": 0, "uyarı": 1, "bilgi": 2}[self.level]
 
