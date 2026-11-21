@@ -4,7 +4,8 @@ Sunucu yoktur: panelin hazır dönemleri (7 gün, 28 gün, 8 hafta, 3 ay) sunucu
 aynısıyla (`dashboard.summary`, yani SQL) önceden hesaplanır ve JSON olarak yazılır. Panel bu
 dosyaları okur. Hesap mantığı tek yerde kalır; tarayıcıda ikinci bir kopyası yoktur.
 
-GitHub Actions her gece çalıştırır, böylece sentetik veri hep "dün"e kadar gelir.
+GitHub Actions haftada bir (pazartesi) ve her push'ta çalıştırır; sentetik veri çalıştığı günün "dün"üne
+kadar gelir. Hazır cevaplar aynı çalışmada aynı veriyle üretilir, panelle hep tutarlıdır.
 """
 from __future__ import annotations
 
@@ -95,7 +96,7 @@ def build(out: Path, today: date | None = None, make_pdf: bool = True, client=No
         html = re.sub(r'\s*<form method="post" action="/cikis".*?</form>', "", html, count=1, flags=re.S)
         html = html.replace('src="/static/panel.js"', 'src="panel.js"')
         html = html.replace("veri her gün yeniden üretilir.",
-                            f'veri her gece yeniden üretilir. <a href="{report_link}">Bu haftanın raporu</a> ·', 1)
+                            f'veri her hafta yeniden üretilir. <a href="{report_link}">Bu haftanın raporu</a> ·', 1)
         assert 'data-statik="1"' in html and "/cikis" not in html and 'src="panel.js"' in html
         (out / "index.html").write_text(html, encoding="utf-8")
         shutil.copy(dashboard.STATIC / "panel.js", out / "panel.js")

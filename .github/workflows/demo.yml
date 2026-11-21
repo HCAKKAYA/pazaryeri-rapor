@@ -1,12 +1,12 @@
 name: demo
 
-# Statik demoyu üretip GitHub Pages'e yayınlar. Her gece yeniden çalışır ki sentetik veri
+# Statik demoyu üretip GitHub Pages'e yayınlar. Haftada bir (pazartesi) ve her push'ta yeniden çalışır ki sentetik veri
 # hep "dün"e kadar gelsin. Depo ayarında Pages kaynağı "GitHub Actions" olmalı.
 on:
   push:
     branches: [main]
   schedule:
-    - cron: "15 2 * * *"   # her gün 02:15 UTC (05:15 TSİ)
+    - cron: "15 2 * * 1"   # her pazartesi 02:15 UTC (05:15 TSİ). Veri ve hazır cevaplar aynı anda üretilir, birbirini tutar.
   workflow_dispatch:
 
 permissions:
@@ -32,7 +32,7 @@ jobs:
         env:
           TZ: Europe/Istanbul
           # Hazır örnek sorular için (depo Settings > Secrets > Actions). Yoksa sorular atlanır.
-          # Anahtar yalnız bu adımda kullanılır, yayınlanan sayfaya girmez. Maliyet: gecede ~6 soru.
+          # Anahtar yalnız bu adımda kullanılır, yayınlanan sayfaya girmez. Maliyet: çalışma başına 6 soru, ~0,09 $.
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       - uses: actions/upload-pages-artifact@v3
         with:

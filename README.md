@@ -126,7 +126,7 @@ py -3 -m venv .venv
 .venv\Scripts\python -m pytest -q                 # 93 test
 ```
 
-Canlı demo GitHub Pages'te statik: GitHub Actions her gece sentetik veriyi yeniden üretir, panelin hazır dönemlerini sunucudaki kodun aynısıyla (SQL) önceden hesaplayıp JSON olarak yayınlar (`cli.py statik-demo`, `.github/workflows/demo.yml`). Bu yüzden canlı demoda giriş ekranı, dosya yükleme ve elle tarih seçimi yok; bunlar sunuculu sürümde var. Sunuculu demo modu: `cli.py panel --demo`, yayınlama: [deploy/DEMO.md](deploy/DEMO.md).
+Canlı demo GitHub Pages'te statik: GitHub Actions haftada bir (ve her push'ta) sentetik veriyi yeniden üretir, panelin hazır dönemlerini sunucudaki kodun aynısıyla (SQL) önceden hesaplayıp JSON olarak yayınlar (`cli.py statik-demo`, `.github/workflows/demo.yml`). Aynı çalışmada 6 örnek soru gerçek modelle cevaplanır; ziyaretçi bu hazır cevapları, tabloyu ve SQL'i görür (anahtar Actions Secret'ında, sayfaya girmez; çalışma başına ~0,09 $). Canlı demoda giriş ekranı, dosya yükleme, elle tarih seçimi ve serbest soru yok; bunlar sunuculu sürümde var. Sunuculu demo modu: `cli.py panel --demo`, yayınlama: [deploy/DEMO.md](deploy/DEMO.md).
 
 E-posta, haftalık zamanlama, yapay zeka yorumu ve sunucu kurulumu için: [docs/KULLANIM.md](docs/KULLANIM.md), [deploy/KURULUM.md](deploy/KURULUM.md).
 

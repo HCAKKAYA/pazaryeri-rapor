@@ -38,7 +38,7 @@
     const v = d.veri, a = d.aralik;
     const ageDays = Math.round((Date.now() - new Date(v.son_gun + "T23:59:59")) / 864e5);
     $("fresh").innerHTML = `Veri <b>${esc(v.son_siparis)}</b> tarihli son siparişe kadar · dosya ${esc(v.dosya_zamani)}` +
-      (ageDays > 7 ? ` · <span class="stale">${ageDays} gündür yeni veri yok</span>` : "");
+      (ageDays > 7 && !d.demo ? ` · <span class="stale">${ageDays} gündür yeni veri yok</span>` : "");
     $("bas").value = a.bas; $("bit").value = a.bit;
     $("bas").min = $("bit").min = v.ilk_gun; $("bas").max = $("bit").max = v.son_gun;
     $("rangenote").textContent = a.onceki_tam
@@ -176,7 +176,7 @@
 
   // ---------------------------------------------------------------- Verine sor
   // Sunuculu panelde ziyaretçi soru yazar (/api/sor). Statik demoda (GitHub Pages) sunucu ve anahtar
-  // yoktur: hazır sorular her gece gerçek modelle cevaplanıp veri/sorular.json olarak yayınlanır.
+  // yoktur: hazır sorular demo verisiyle birlikte (haftada bir) gerçek modelle cevaplanıp veri/sorular.json olarak yayınlanır.
   const EXAMPLES = ["Bu hafta en çok kâr eden 3 ürün hangisi?", "Kargo cironun yüzde kaçını yiyor?",
                     "Zarar eden ürünlerim var mı?", "Ekim ayında net kârım ne kadardı?"];
   let prepared = null;   // statik demoda {soru: cevap}
