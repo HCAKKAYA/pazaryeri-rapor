@@ -75,6 +75,9 @@
   .user { color:var(--ink2); font-size:13px; display:flex; gap:8px; align-items:center; }
   .link { font:inherit; font-size:13px; background:none; border:1px solid var(--line); border-radius:6px;
           padding:4px 10px; color:var(--ink); cursor:pointer; }
+  .demobar { background:var(--accent-soft); border:1px solid var(--line); border-radius:8px; padding:9px 12px;
+             font-size:13.5px; color:var(--ink); margin-bottom:14px; }
+  .demobar a { color:var(--accent); }
   .err-banner { background:var(--soft); border-left:3px solid var(--crit); padding:10px 12px; border-radius:0 6px 6px 0; margin-bottom:14px; display:none; }
   @media (max-width:900px) { .kpis { grid-template-columns:repeat(3, 1fr); } .grid2 { grid-template-columns:1fr; } }
   @media (max-width:560px) { .kpis { grid-template-columns:repeat(2, 1fr); } .upload { grid-template-columns:1fr; }
@@ -93,6 +96,8 @@
     </form>
   </header>
 
+  <div class="demobar" id="demobar" hidden>Bu bir demo. Mağaza, ürünler ve siparişler sentetik; veri her gün yeniden üretilir.
+    Kaynak kod: <a href="https://github.com/HCAKKAYA/pazaryeri-rapor" rel="noopener">github.com/HCAKKAYA/pazaryeri-rapor</a></div>
   <div class="err-banner" id="errbox" role="alert"></div>
 
   <div class="toolbar" role="group" aria-label="Dönem">

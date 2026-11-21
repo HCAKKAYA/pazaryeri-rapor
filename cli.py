@@ -118,9 +118,9 @@ def cmd_panel(args) -> None:
     import uvicorn
 
     from rapor import dashboard
-    app = dashboard.create_app()
+    app = dashboard.create_app(demo_mode=True if args.demo else None)
     n = len(app.state.users.list_users())
-    print(f"Panel: http://{args.host}:{args.port}  ({n} kullanıcı)")
+    print(f"Panel: http://{args.host}:{args.port}  ({n} kullanıcı)" + ("  [DEMO]" if app.state.demo else ""))
     if n == 0:
         print("Henüz kullanıcı yok. Eklemek için: python cli.py kullanici-ekle --eposta ... --magaza ...")
     uvicorn.run(app, host=args.host, port=args.port, log_level="warning",
@@ -213,7 +213,9 @@ def main(argv=None) -> None:
 
     pn = sub.add_parser("panel", help="satıcı panelini başlat")
     pn.add_argument("--host", default="127.0.0.1")
-    pn.add_argument("--port", type=int, default=8791)
+    pn.add_argument("--port", type=int, default=int(os.environ.get("PORT", 8791)),
+                    help="varsayılan 8791; barındırma servisi PORT ortam değişkeni verirse o kullanılır")
+    pn.add_argument("--demo", action="store_true", help="herkese açık demo: sentetik veri, şifresiz demo girişi, yükleme kapalı")
     pn.add_argument("--proxy", default="127.0.0.1", help="X-Forwarded-* başlıklarına güvenilecek vekil sunucu IP'leri")
     pn.set_defaults(fn=cmd_panel)
 

@@ -146,6 +146,22 @@ class AuthStore:
             self._db.commit()
         return token
 
+    def session_for(self, email: str, ttl: int = SESSION_TTL) -> str:
+        """Parolasız oturum; yalnız herkese açık demo hesabı için kullanılır."""
+        with self._lock:
+            row = self._db.execute("SELECT id FROM users WHERE email=?", (email.strip().lower(),)).fetchone()
+            if not row:
+                raise AuthError("Kullanıcı yok")
+            token = secrets.token_urlsafe(32)
+            self._db.execute("DELETE FROM sessions WHERE expires < ?", (time.time(),))
+            self._db.execute("INSERT INTO sessions VALUES (?,?,?)", (_token_hash(token), row[0], time.time() + ttl))
+            self._db.commit()
+        return token
+
+    def has_user(self, email: str) -> bool:
+        with self._lock:
+            return self._db.execute("SELECT 1 FROM users WHERE email=?", (email.strip().lower(),)).fetchone() is not None
+
     def user_for(self, token: str | None) -> User | None:
         if not token:
             return None

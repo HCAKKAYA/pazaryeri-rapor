@@ -9,6 +9,7 @@ Erişim: e-posta ve parolayla giriş (auth.py). Her kullanıcı yalnız kendi ma
 from __future__ import annotations
 
 import os
+import secrets
 import threading
 from html import escape
 from dataclasses import dataclass, field
@@ -20,7 +21,7 @@ from fastapi import Cookie, FastAPI, File, Form, HTTPException, Request, UploadF
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 
 from . import alerts as alerts_mod
-from . import auth, clean, metrics, pipeline, storage, weekly
+from . import auth, clean, demo, metrics, pipeline, storage, weekly
 from .fmt import num, pct, tl
 
 ROOT = pipeline.ROOT
@@ -157,8 +158,13 @@ SECURITY_HEADERS = {
 
 
 def create_app(config_path: Path | None = None, db_path: Path | None = None, root: Path = ROOT,
-               https: bool | None = None) -> FastAPI:
-    cfg = yaml.safe_load((config_path or root / "config" / "magazalar.yaml").read_text(encoding="utf-8")) or {}
+               https: bool | None = None, demo_mode: bool | None = None) -> FastAPI:
+    demo_mode = (os.environ.get("PANEL_DEMO") == "1") if demo_mode is None else demo_mode
+    if demo_mode:
+        # Demo: tek sentetik mağaza, ayar dosyası gerekmez.
+        cfg = {"magazalar": [{"ad": demo.STORE_NAME, "klasor": "gelen/demo"}]}
+    else:
+        cfg = yaml.safe_load((config_path or root / "config" / "magazalar.yaml").read_text(encoding="utf-8")) or {}
     mapping = clean.load_mapping(root / "config" / "mapping.yaml")
     stores: dict[str, Store] = {}
     for m in cfg.get("magazalar", []):
@@ -168,9 +174,14 @@ def create_app(config_path: Path | None = None, db_path: Path | None = None, roo
         stores[s.slug] = s
     users = auth.AuthStore(db_path or root / "data" / "panel.db")
     secure = (os.environ.get("PANEL_HTTPS") == "1") if https is None else https
+    if demo_mode:
+        demo.ensure_data(stores[demo.STORE_SLUG].folder)
+        if not users.has_user(demo.DEMO_EMAIL):
+            # Parolası kimsenin bilmediği rastgele bir değer; girişi yalnız "Demo'ya gir" düğmesi açar.
+            users.add_user(demo.DEMO_EMAIL, secrets.token_urlsafe(24), demo.STORE_SLUG)
 
     app = FastAPI(title="Pazaryeri paneli", docs_url=None, redoc_url=None, openapi_url=None)
-    app.state.stores, app.state.users = stores, users
+    app.state.stores, app.state.users, app.state.demo = stores, users, demo_mode
 
     @app.middleware("http")
     async def headers(request: Request, call_next):
@@ -210,7 +221,20 @@ def create_app(config_path: Path | None = None, db_path: Path | None = None, roo
     def login_form(hata: str = ""):
         msg = {"1": "E-posta ya da parola hatalı.", "2": "Çok fazla hatalı deneme. 15 dakika sonra tekrar deneyin.",
                "3": "Oturumunuz kapandı."}.get(hata, "")
-        return page("giris.html", HATA=msg)
+        demo_html = ('<form method="post" action="/demo" class="demo"><p>Hesabınız yoksa sentetik verili '
+                     'demo mağazaya şifresiz girebilirsiniz.</p><button type="submit" class="ikincil">'
+                     "Demo'ya gir</button></form>") if demo_mode else ""
+        return page("giris.html", HATA=msg, DEMO=demo_html)
+
+    @app.post("/demo")
+    def demo_login(request: Request):
+        same_origin(request)
+        if not demo_mode:
+            raise HTTPException(404, "Bulunamadı")
+        token = users.session_for(demo.DEMO_EMAIL, ttl=24 * 3600)
+        resp = RedirectResponse("/panel", 303)
+        resp.set_cookie(COOKIE, token, max_age=24 * 3600, httponly=True, secure=secure, samesite="lax")
+        return resp
 
     @app.post("/giris")
     def login(request: Request, eposta: str = Form(""), parola: str = Form("")):
@@ -247,14 +271,20 @@ def create_app(config_path: Path | None = None, db_path: Path | None = None, roo
     def api_summary(bas: date | None = None, bit: date | None = None, oturum: str | None = Cookie(None)):
         _, store = current(oturum)
         with store.lock:
+            if demo_mode:
+                demo.ensure_data(store.folder)
             store.refresh(mapping)
-            return summary(store, bas, bit)
+            out = summary(store, bas, bit)
+        out["demo"] = demo_mode
+        return out
 
     @app.post("/api/yukle")
     async def upload(request: Request, tur: str = Form(...), dosya: UploadFile = File(...),
                      oturum: str | None = Cookie(None)):
         same_origin(request)
         _, store = current(oturum)
+        if demo_mode:
+            raise HTTPException(403, "Demo modunda dosya yükleme kapalı.")
         if tur not in ("siparis", "urun"):
             raise HTTPException(400, "Dosya türü siparis ya da urun olmalı.")
         pattern = store.orders_glob if tur == "siparis" else store.products_glob

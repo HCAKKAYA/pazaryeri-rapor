@@ -18,5 +18,6 @@ RUN useradd --create-home --uid 10001 panel \
 USER panel
 
 EXPOSE 8791
+# Demo için: PANEL_DEMO=1 (sentetik veri, şifresiz demo girişi). Servis PORT verirse o port dinlenir.
 # Önünde HTTPS sağlayan vekil sunucu (Caddy) olacak; X-Forwarded başlıkları yalnız ondan kabul edilir.
-CMD ["python", "cli.py", "panel", "--host", "0.0.0.0", "--port", "8791", "--proxy", "*"]
+CMD ["sh", "-c", "python cli.py panel --host 0.0.0.0 --port ${PORT:-8791} --proxy \"*\""]

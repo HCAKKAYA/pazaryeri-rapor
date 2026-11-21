@@ -6,6 +6,8 @@ Trendyol, Hepsiburada gibi pazaryerlerinde satış yapan küçük işletmeler i�
 
 Satıcı panelden sipariş dosyasını indiriyor, bu sistem dosyayı okuyup asıl merak edilen soruya cevap veriyor: komisyon, kargo ve ürün maliyeti düştükten sonra elde ne kaldı? Her pazartesi PDF ekli bir e-posta gidiyor; satıcı istediği zaman panele girip istediği döneme bakabiliyor.
 
+**Örnek çıktı:** [haftalık rapor (PDF)](docs/ornek-rapor.pdf) · **Canlı demo:** yayına alınınca buraya eklenecek
+
 > Projedeki bütün veriler sentetiktir. Mağaza, ürünler ve siparişler örnek veri üreticisiyle oluşturuldu; gerçek bir satıcıya ait değildir.
 
 ![Satıcı paneli](docs/img/panel.png)
@@ -103,8 +105,10 @@ py -3 -m venv .venv
 .venv\Scripts\python cli.py kullanici-ekle --eposta demo@example.com --magaza "Örnek Mağaza"
 .venv\Scripts\python cli.py panel                 # http://127.0.0.1:8791
 
-.venv\Scripts\python -m pytest -q                 # 62 test
+.venv\Scripts\python -m pytest -q                 # 66 test
 ```
+
+Demo modu (sentetik veri, şifresiz "Demo'ya gir", yükleme kapalı): `cli.py panel --demo`. Yayınlama: [deploy/DEMO.md](deploy/DEMO.md).
 
 E-posta, haftalık zamanlama, yapay zeka yorumu ve sunucu kurulumu için: [docs/KULLANIM.md](docs/KULLANIM.md), [deploy/KURULUM.md](deploy/KURULUM.md).
 
@@ -114,14 +118,14 @@ Proje bir portfolyo çalışması olarak geliştiriliyor ve uçtan uca çalış�
 
 - gerçek bir pazaryeri dosyasıyla sütun eşlemesini ve kâr varsayımlarını doğrulamak,
 - dosya yükleme adımını kaldırmak için pazaryeri API bağlantısı,
-- herkese açık, sentetik veriyle çalışan bir canlı demo.
+- demo modunu ücretsiz bir servise yayınlamak.
 
 ## Dosya yapısı
 
 ```
 rapor/          temizlik, metrikler, uyarılar, yorum, rapor, PDF, e-posta, panel, giriş
 config/         sütun eşleme ve mağaza ayarları
-tests/          62 test
+tests/          66 test
 deploy/         Docker ve Caddy ile sunucu kurulumu
 tools/          README ekran görüntülerini yeniden üreten betik
 docs/           kullanım kılavuzu ve görseller

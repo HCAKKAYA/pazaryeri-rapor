@@ -29,6 +29,8 @@
   }
 
   function render(d) {
+    $("demobar").hidden = !d.demo;
+    document.querySelector(".upload-card").hidden = !!d.demo;
     const v = d.veri, a = d.aralik;
     const ageDays = Math.round((Date.now() - new Date(v.son_gun + "T23:59:59")) / 864e5);
     $("fresh").innerHTML = `Veri <b>${esc(v.son_siparis)}</b> tarihli son siparişe kadar · dosya ${esc(v.dosya_zamani)}` +
