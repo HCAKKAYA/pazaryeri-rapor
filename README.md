@@ -8,7 +8,7 @@ tek sayfalık bir rapor üretir: net kâr, haftalık değişim, uyarılar (stok,
 
 ```powershell
 py -3 -m venv .venv
-.venv\Scripts\python -m pip install duckdb pandas jinja2 matplotlib openpyxl pyyaml pytest anthropic
+.venv\Scripts\python -m pip install -r requirements.txt
 ```
 
 ## Kullanım

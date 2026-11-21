@@ -1,0 +1,14 @@
+duckdb
+pandas
+jinja2
+matplotlib
+openpyxl
+pyyaml
+anthropic
+keyring
+fastapi
+uvicorn
+python-multipart
+# test
+pytest
+httpx
