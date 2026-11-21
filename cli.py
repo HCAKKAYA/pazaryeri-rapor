@@ -11,6 +11,8 @@
   python cli.py sifre-kaydet                # SMTP parolasını Windows Kimlik Yöneticisi'ne kaydeder
   python cli.py zamanla --gun Monday --saat 08:00   # Windows Görev Zamanlayıcı'ya ekler
   python cli.py zamanla --kaldir
+  python cli.py sor "Bu hafta en çok kâr eden ürün hangisi?"
+  python cli.py degerlendir                 # 45 soruluk doğruluk ölçümü (API anahtarı gerekir)
   python cli.py panel                       # satıcı paneli: http://127.0.0.1:8791 (e-posta + parola)
   python cli.py kullanici-ekle --eposta satici@ornek.com --magaza "Örnek Mağaza"
   python cli.py kullanicilar | kullanici-sil --eposta ... | parola --eposta ... --rastgele
@@ -118,6 +120,7 @@ def cmd_panel(args) -> None:
     import uvicorn
 
     from rapor import dashboard
+    _load_env()
     app = dashboard.create_app(demo_mode=True if args.demo else None)
     n = len(app.state.users.list_users())
     print(f"Panel: http://{args.host}:{args.port}  ({n} kullanıcı)" + ("  [DEMO]" if app.state.demo else ""))
@@ -184,6 +187,47 @@ def cmd_statik_demo(args) -> None:
     print(f"Statik demo -> {Path(args.cikti).resolve()} ({len(files)} dosya)")
 
 
+def _load_env() -> None:
+    """Proje kökündeki .env dosyasından ANTHROPIC_API_KEY gibi değişkenleri yükler (varsa)."""
+    env = ROOT / ".env"
+    if env.exists():
+        for line in env.read_text(encoding="utf-8").splitlines():
+            if "=" in line and not line.lstrip().startswith("#"):
+                k, v = line.split("=", 1)
+                os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
+
+
+def cmd_sor(args) -> None:
+    from rapor import clean, soru
+    _load_env()
+    cfg = clean.load_mapping(ROOT / "config" / "mapping.yaml")
+    orders = clean.load_orders(Path(args.siparis or ROOT / "sample_data" / "siparisler.xlsx"), cfg, clean.Quality())
+    products = clean.load_products(Path(args.urun or ROOT / "sample_data" / "urunler.csv"), cfg)
+    c = soru.ask(args.soru, soru.sandbox(orders, products))
+    if c.durum == "cevaplanamaz":
+        print(f"Bu veriyle cevaplanamıyor: {c.aciklama}")
+        return
+    if c.durum != "ok":
+        sys.exit(f"Cevaplanamadı: {c.hata}")
+    if c.cevap:
+        print(c.cevap + "\n")
+    print(" | ".join(c.sutunlar))
+    for r in c.satirlar[:20]:
+        print(" | ".join(r))
+    print(f"\nSQL: {c.sql}")
+
+
+def cmd_degerlendir(args) -> None:
+    from datetime import date as _d
+
+    from rapor import degerlendirme
+    _load_env()
+    res = degerlendirme.run(only=args.sadece.split(",") if args.sadece else None)
+    path = degerlendirme.report(res, ROOT / "eval" / f"sonuc-{_d.today():%Y-%m-%d}.md")
+    ok = sum(r.gecti for r in res)
+    print(f"\n{ok}/{len(res)} doğru. Rapor: {path}")
+
+
 def main(argv=None) -> None:
     if sys.stdout is None:  # pythonw.exe ile (zamanlayıcıdan) çalışırken konsol yok
         sys.stdout = sys.stderr = open(os.devnull, "w", encoding="utf-8")
@@ -243,6 +287,16 @@ def main(argv=None) -> None:
     sd.add_argument("--cikti", default=str(ROOT / "site"))
     sd.add_argument("--pdf-yok", action="store_true")
     sd.set_defaults(fn=cmd_statik_demo)
+
+    so = sub.add_parser("sor", help="veriye Türkçe soru sor (ANTHROPIC_API_KEY gerekir)")
+    so.add_argument("soru")
+    so.add_argument("--siparis")
+    so.add_argument("--urun")
+    so.set_defaults(fn=cmd_sor)
+
+    de = sub.add_parser("degerlendir", help="'Verine sor' doğruluğunu eval/sorular.yaml ile ölç")
+    de.add_argument("--sadece", help="virgülle ayrılmış soru id'leri")
+    de.set_defaults(fn=cmd_degerlendir)
 
     args = ap.parse_args(argv)
     args.fn(args)

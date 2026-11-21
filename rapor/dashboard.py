@@ -45,6 +45,7 @@ class Store:
     con: object = None
     quality: clean.Quality | None = None
     files: tuple[Path, Path] | None = None
+    qcon: object = None            # soru-cevap için ayrı, dış erişimi kapalı bağlantı
 
     def refresh(self, mapping: dict) -> None:
         """Klasördeki en yeni dosyalar değiştiyse veritabanını yeniden kurar."""
@@ -62,7 +63,11 @@ class Store:
         q.missing_cost = sorted(set(orders.loc[~orders["barcode"].isin(known), "product_name"].dropna()))
         if self.con is not None:
             self.con.close()
+        if self.qcon is not None:
+            self.qcon.close()
         self.con = storage.build(":memory:", orders, products)
+        from . import soru
+        self.qcon = soru.sandbox(orders, products)
         self.quality, self.files, self._sig = q, (o, p), sig
 
 
@@ -286,7 +291,28 @@ def create_app(config_path: Path | None = None, db_path: Path | None = None, roo
             store.refresh(mapping)
             out = summary(store, bas, bit)
         out["demo"] = demo_mode
+        out["soru_acik"] = bool(os.environ.get("ANTHROPIC_API_KEY"))
         return out
+
+    ask_limits: dict[str, list[float]] = {}
+
+    @app.post("/api/sor")
+    def api_ask(request: Request, soru_metni: str = Form("", alias="soru"), oturum: str | None = Cookie(None)):
+        same_origin(request)
+        user, store = current(oturum)
+        if not os.environ.get("ANTHROPIC_API_KEY"):
+            raise HTTPException(503, "Soru sorma özelliği bu kurulumda kapalı (API anahtarı yok).")
+        import time as _t
+        now = _t.time()
+        recent = [t for t in ask_limits.get(user.email, []) if now - t < 3600]
+        if len(recent) >= 30:   # kullanıcı başına saatte 30 soru: maliyet ve kötüye kullanım sınırı
+            raise HTTPException(429, "Saatlik soru sınırına ulaşıldı. Biraz sonra tekrar deneyin.")
+        ask_limits[user.email] = recent + [now]
+        from . import soru
+        with store.lock:
+            store.refresh(mapping)
+            qcon = store.qcon
+        return soru.ask(soru_metni, qcon).to_dict()
 
     @app.post("/api/yukle")
     async def upload(request: Request, tur: str = Form(...), dosya: UploadFile = File(...),

@@ -32,6 +32,7 @@
 
   function render(d) {
     $("demobar").hidden = !d.demo;
+    $("askcard").hidden = !d.soru_acik;
     if (STATIK) { $("bas").disabled = $("bit").disabled = true; $("bas").title = $("bit").title = "Statik demoda hazır dönemler kullanılır"; }
     document.querySelector(".upload-card").hidden = !!d.demo;
     const v = d.veri, a = d.aralik;
@@ -172,5 +173,43 @@
   }));
 
   matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => state.data && drawChart(state.data.gunluk));
+
+  // ---------------------------------------------------------------- Verine sor
+  const EXAMPLES = ["Bu hafta en çok kâr eden 3 ürün hangisi?", "Kargo cironun yüzde kaçını yiyor?",
+                    "Zarar eden ürünlerim var mı?", "Ekim ayında net kârım ne kadardı?"];
+  $("askex").innerHTML = EXAMPLES.map(q => `<button type="button">${esc(q)}</button>`).join("");
+  $("askex").addEventListener("click", ev => {
+    if (ev.target.tagName === "BUTTON") { $("askq").value = ev.target.textContent; $("askform").requestSubmit(); }
+  });
+  $("askform").addEventListener("submit", async ev => {
+    ev.preventDefault();
+    const q = $("askq").value.trim();
+    if (!q) return;
+    const out = $("askout"), btn = ev.target.querySelector("button");
+    btn.disabled = true;
+    out.innerHTML = `<div class="answer muted">Düşünüyor… (birkaç saniye sürebilir)</div>`;
+    try {
+      const fd = new FormData(); fd.append("soru", q);
+      const r = await fetch(api("sor"), { method: "POST", body: fd });
+      if (r.status === 401) return toLogin();
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.detail || "Soru cevaplanamadı");
+      if (j.durum === "cevaplanamaz") {
+        out.innerHTML = `<div class="answer"><p class="text">Bu soru elimdeki veriyle cevaplanamıyor.</p><p class="muted">${esc(j.aciklama)}</p></div>`;
+        return;
+      }
+      if (j.durum !== "ok") throw new Error(j.hata || "Soru cevaplanamadı");
+      const head = j.sutunlar.map(c => `<th>${esc(c)}</th>`).join("");
+      const body = j.satirlar.slice(0, 50).map(r => `<tr>${r.map(v => `<td>${esc(v)}</td>`).join("")}</tr>`).join("");
+      out.innerHTML = `<div class="answer">
+        ${j.cevap ? `<p class="text">${esc(j.cevap)}</p>` : ""}
+        <div class="tablewrap"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>
+        <details><summary>Nasıl hesaplandı? (SQL)</summary><p>${esc(j.aciklama)}</p><pre>${esc(j.sql)}</pre></details>
+      </div>`;
+    } catch (e) {
+      out.innerHTML = `<div class="answer"><p class="muted">${esc(e.message)}</p></div>`;
+    } finally { btn.disabled = false; }
+  });
+
   load();
 })();

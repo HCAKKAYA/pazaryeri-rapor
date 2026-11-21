@@ -67,6 +67,20 @@
   td.muted { color:var(--ink2); }
   table.narrow { min-width:420px; }
   .note { color:var(--ink2); font-size:13px; margin:-4px 0 10px; }
+  .ask-card { margin-bottom:14px; }
+  .ask { display:flex; gap:8px; }
+  .ask input { flex:1; min-width:0; font:inherit; padding:9px 12px; border:1px solid var(--line); border-radius:8px;
+               background:var(--bg); color:var(--ink); }
+  .ask .btn { margin-top:0; }
+  .examples { display:flex; flex-wrap:wrap; gap:6px; margin:10px 0 0; }
+  .examples button { font:inherit; font-size:12.5px; padding:4px 10px; border-radius:14px; border:1px solid var(--line);
+                     background:var(--soft); color:var(--ink2); cursor:pointer; }
+  .answer { margin-top:14px; }
+  .answer p.text { font-size:15px; margin:0 0 10px; }
+  .answer details { margin-top:8px; color:var(--ink2); font-size:12.5px; }
+  .answer pre { white-space:pre-wrap; background:var(--soft); padding:8px 10px; border-radius:6px; font-size:12px; overflow-x:auto; }
+  .answer .muted { color:var(--ink2); font-size:13.5px; }
+  .answer table { min-width:0; }
   .upload { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:14px; }
   .upload label { display:block; font-size:13.5px; color:var(--ink2); margin-bottom:6px; }
   .upload input[type=file] { font:inherit; font-size:13px; max-width:100%; color:var(--ink2); }
@@ -115,6 +129,17 @@
       <input type="date" id="bas" aria-label="Başlangıç"> – <input type="date" id="bit" aria-label="Bitiş">
     </div>
     <span class="range-note" id="rangenote"></span>
+  </div>
+
+  <div class="card ask-card" id="askcard" hidden>
+    <h2>Verine sor</h2>
+    <form id="askform" class="ask">
+      <input id="askq" name="soru" type="text" maxlength="500" autocomplete="off"
+             placeholder="Örn. Bu hafta en çok kâr eden 3 ürün hangisi?" aria-label="Sorunuz">
+      <button class="btn" type="submit">Sor</button>
+    </form>
+    <div class="examples" id="askex"></div>
+    <div id="askout" aria-live="polite"></div>
   </div>
 
   <div class="kpis" id="kpis"></div>

@@ -31,4 +31,37 @@ def build(db_path: Path | str, orders: pd.DataFrame, products: pd.DataFrame) -> 
         FROM orders o
         LEFT JOIN products p USING (barcode)
     """)
+    # Soru-cevap asistanı (soru.py) için Türkçe ve "toplanabilir" görünümler. Her satırda kâr
+    # kalemleri hazır: SUM(net_kar) her dönem ve her kırılım için metrics.period() ile aynıdır.
+    # Model iş kuralını (kargo sipariş başına, iadede komisyon döner...) yeniden kurmak zorunda kalmaz.
+    con.execute("""
+        CREATE OR REPLACE VIEW satis AS
+        WITH l AS (
+            SELECT *,
+                   CASE WHEN status IN ('delivered', 'returned')
+                        THEN shipping_fee / COUNT(*) FILTER (WHERE status IN ('delivered', 'returned'))
+                                                     OVER (PARTITION BY order_id)
+                        ELSE 0 END AS ship_share
+            FROM lines
+        )
+        SELECT
+            day                                                      AS tarih,
+            order_id                                                 AS siparis_no,
+            barcode                                                  AS barkod,
+            name                                                     AS urun,
+            CASE status WHEN 'delivered' THEN 'teslim' WHEN 'returned' THEN 'iade' ELSE 'iptal' END AS durum,
+            quantity                                                 AS adet,
+            unit_price                                               AS birim_fiyat,
+            commission_rate                                          AS komisyon_orani,
+            CASE WHEN status = 'delivered' THEN gross ELSE 0 END      AS brut_satis,
+            CASE WHEN status = 'delivered' THEN commission ELSE 0 END AS komisyon,
+            CASE WHEN status = 'delivered' THEN cogs ELSE 0 END       AS urun_maliyeti,
+            ship_share                                               AS kargo,
+            CASE WHEN status = 'delivered' THEN gross - commission - cogs ELSE 0 END - ship_share AS net_kar
+        FROM l
+    """)
+    con.execute("""
+        CREATE OR REPLACE VIEW urunler AS
+        SELECT barcode AS barkod, product_name AS urun, cost AS birim_maliyet, stock AS stok FROM products
+    """)
     return con
