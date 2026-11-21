@@ -124,3 +124,7 @@ deploy/         Docker ve Caddy ile sunucu kurulumu
 tools/          README ekran görüntülerini yeniden üreten betik
 docs/           kullanım kılavuzu ve görseller
 ```
+
+## Lisans
+
+MIT. Ayrıntı: [LICENSE](LICENSE).
