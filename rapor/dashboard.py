@@ -3,53 +3,31 @@ ve satıcının yeni dışa aktarım dosyasını kendisinin yüklemesi.
 
 Veri "anlık" değildir: en son yüklenen dosya kadar günceldir. Panel bunu açıkça gösterir.
 
-Erişim: her mağazanın gizli bir bağlantısı vardır (/m/<mağaza>?k=<anahtar>). Bu bir
-prototip erişimidir, kullanıcı girişi değildir; internete açmadan önce gerçek giriş,
-HTTPS ve oturum yönetimi gerekir. Varsayılan olarak yalnız bu bilgisayardan erişilir.
+Erişim: e-posta ve parolayla giriş (auth.py). Her kullanıcı yalnız kendi mağazasını görür.
+İnternette yalnız HTTPS arkasında çalıştırılmalı (PANEL_HTTPS=1 çerezi Secure yapar).
 """
 from __future__ import annotations
 
-import hmac
-import json
-import secrets
+import os
 import threading
+from html import escape
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import yaml
-from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
-from fastapi.responses import HTMLResponse
+from fastapi import Cookie, FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 
 from . import alerts as alerts_mod
-from . import clean, metrics, pipeline, storage, weekly
+from . import auth, clean, metrics, pipeline, storage, weekly
 from .fmt import num, pct, tl
 
 ROOT = pipeline.ROOT
 MAX_UPLOAD = 25 * 1024 * 1024
-TEMPLATE = Path(__file__).parent / "templates" / "panel.html"
-
-
-# ---------------------------------------------------------------- erişim anahtarları
-
-def load_keys(path: Path) -> dict:
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (FileNotFoundError, json.JSONDecodeError):
-        return {}
-
-
-def ensure_keys(slugs: list[str], path: Path) -> dict:
-    keys = load_keys(path)
-    changed = False
-    for s in slugs:
-        if s not in keys:
-            keys[s] = secrets.token_urlsafe(18)
-            changed = True
-    if changed:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(keys, indent=1), encoding="utf-8")
-    return keys
+TEMPLATES = Path(__file__).parent / "templates"
+STATIC = Path(__file__).parent / "static"
+COOKIE = "oturum"
 
 
 # ---------------------------------------------------------------- mağaza verisi
@@ -149,9 +127,37 @@ def summary(store: Store, start: date | None, end: date | None) -> dict:
     }
 
 
+# ---------------------------------------------------------------- KVKK: veri azaltma
+
+def minimize(raw: Path, target: Path, columns: list[str]) -> None:
+    """Yüklenen dosyadan yalnız raporun kullandığı sütunları saklar.
+
+    Pazaryeri dışa aktarımlarında müşteri adı, adres, telefon gibi kişisel veriler olabilir;
+    bunlar diske hiç yazılmaz (ham dosya silinir).
+    """
+    df = clean._read_any(raw)
+    df = df[[c for c in columns if c in df.columns]]
+    if target.suffix.lower() in (".xlsx", ".xls"):
+        df.to_excel(target, index=False)
+    else:
+        df.to_csv(target, index=False, sep=";", encoding="utf-8-sig")
+
+
 # ---------------------------------------------------------------- uygulama
 
-def create_app(config_path: Path | None = None, keys_path: Path | None = None, root: Path = ROOT) -> FastAPI:
+SECURITY_HEADERS = {
+    "Content-Security-Policy": ("default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com; "
+                                "style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; "
+                                "frame-ancestors 'none'; base-uri 'none'; form-action 'self'"),
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "same-origin",  # no-referrer olursa tarayıcı formu Origin: null ile yollar
+    "Cache-Control": "no-store",
+}
+
+
+def create_app(config_path: Path | None = None, db_path: Path | None = None, root: Path = ROOT,
+               https: bool | None = None) -> FastAPI:
     cfg = yaml.safe_load((config_path or root / "config" / "magazalar.yaml").read_text(encoding="utf-8")) or {}
     mapping = clean.load_mapping(root / "config" / "mapping.yaml")
     stores: dict[str, Store] = {}
@@ -160,38 +166,95 @@ def create_app(config_path: Path | None = None, keys_path: Path | None = None, r
         s = Store(m["ad"], pipeline.slugify(m["ad"]), folder,
                   m.get("siparis_desen", "siparis*.xlsx"), m.get("urun_desen", "urun*.csv"))
         stores[s.slug] = s
-    keys = ensure_keys(list(stores), keys_path or root / "data" / "panel_anahtarlari.json")
+    users = auth.AuthStore(db_path or root / "data" / "panel.db")
+    secure = (os.environ.get("PANEL_HTTPS") == "1") if https is None else https
 
     app = FastAPI(title="Pazaryeri paneli", docs_url=None, redoc_url=None, openapi_url=None)
-    app.state.stores, app.state.keys = stores, keys
+    app.state.stores, app.state.users = stores, users
 
-    def auth(slug: str, k: str | None) -> Store:
-        store = stores.get(slug)
-        # Mağaza yoksa da anahtar yanlışsa da aynı yanıt: hangi mağazaların var olduğu sızmasın.
-        if not store or not k or not hmac.compare_digest(k, keys.get(slug, "")):
-            raise HTTPException(404, "Bulunamadı")
-        return store
+    @app.middleware("http")
+    async def headers(request: Request, call_next):
+        resp = await call_next(request)
+        for k, v in SECURITY_HEADERS.items():
+            resp.headers.setdefault(k, v)
+        if secure:
+            resp.headers["Strict-Transport-Security"] = "max-age=31536000"
+        return resp
 
-    @app.get("/", response_class=HTMLResponse)
-    def index():
-        return HTMLResponse("<p style='font-family:sans-serif'>Mağaza bağlantınızla girin.</p>")
+    def current(token: str | None) -> tuple[auth.User, Store]:
+        user = users.user_for(token)
+        if not user:
+            raise HTTPException(401, "Oturum yok ya da süresi doldu. Yeniden giriş yapın.")
+        store = stores.get(user.store)
+        if not store:
+            raise HTTPException(403, "Bu hesaba bağlı mağaza bulunamadı.")
+        return user, store
 
-    @app.get("/m/{slug}", response_class=HTMLResponse)
-    def page(slug: str, k: str | None = Query(None)):
-        store = auth(slug, k)
-        html = TEMPLATE.read_text(encoding="utf-8").replace("{{MAGAZA}}", store.name)
-        return HTMLResponse(html, headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"})
+    def same_origin(request: Request) -> None:
+        """Form ve yükleme isteklerinde başka siteden gelen istekleri (CSRF) reddet."""
+        origin = request.headers.get("origin")
+        if origin and origin.split("://", 1)[-1] != request.headers.get("host"):
+            raise HTTPException(403, "İstek reddedildi.")
 
-    @app.get("/api/{slug}/ozet")
-    def api_summary(slug: str, k: str | None = Query(None), bas: date | None = None, bit: date | None = None):
-        store = auth(slug, k)
+    def page(name: str, **repl) -> HTMLResponse:
+        html = (TEMPLATES / name).read_text(encoding="utf-8")
+        for k, v in repl.items():
+            html = html.replace("{{" + k + "}}", v)
+        return HTMLResponse(html)
+
+    @app.get("/")
+    def index(oturum: str | None = Cookie(None)):
+        return RedirectResponse("/panel" if users.user_for(oturum) else "/giris", 303)
+
+    @app.get("/giris", response_class=HTMLResponse)
+    def login_form(hata: str = ""):
+        msg = {"1": "E-posta ya da parola hatalı.", "2": "Çok fazla hatalı deneme. 15 dakika sonra tekrar deneyin.",
+               "3": "Oturumunuz kapandı."}.get(hata, "")
+        return page("giris.html", HATA=msg)
+
+    @app.post("/giris")
+    def login(request: Request, eposta: str = Form(""), parola: str = Form("")):
+        same_origin(request)
+        ip = request.client.host if request.client else "?"
+        try:
+            token = users.login(eposta, parola, ip)
+        except auth.AuthError as e:
+            return RedirectResponse("/giris?hata=" + ("2" if "15 dakika" in str(e) else "1"), 303)
+        resp = RedirectResponse("/panel", 303)
+        resp.set_cookie(COOKIE, token, max_age=auth.SESSION_TTL, httponly=True, secure=secure, samesite="lax")
+        return resp
+
+    @app.post("/cikis")
+    def logout(request: Request, oturum: str | None = Cookie(None)):
+        same_origin(request)
+        users.logout(oturum)
+        resp = RedirectResponse("/giris?hata=3", 303)
+        resp.delete_cookie(COOKIE)
+        return resp
+
+    @app.get("/panel", response_class=HTMLResponse)
+    def panel(oturum: str | None = Cookie(None)):
+        user = users.user_for(oturum)
+        if not user or user.store not in stores:
+            return RedirectResponse("/giris", 303)
+        return page("panel.html", MAGAZA=escape(stores[user.store].name), EPOSTA=escape(user.email))
+
+    @app.get("/static/panel.js")
+    def static_js():
+        return FileResponse(STATIC / "panel.js", media_type="text/javascript")
+
+    @app.get("/api/ozet")
+    def api_summary(bas: date | None = None, bit: date | None = None, oturum: str | None = Cookie(None)):
+        _, store = current(oturum)
         with store.lock:
             store.refresh(mapping)
             return summary(store, bas, bit)
 
-    @app.post("/api/{slug}/yukle")
-    async def upload(slug: str, k: str | None = Query(None), tur: str = Form(...), dosya: UploadFile = File(...)):
-        store = auth(slug, k)
+    @app.post("/api/yukle")
+    async def upload(request: Request, tur: str = Form(...), dosya: UploadFile = File(...),
+                     oturum: str | None = Cookie(None)):
+        same_origin(request)
+        _, store = current(oturum)
         if tur not in ("siparis", "urun"):
             raise HTTPException(400, "Dosya türü siparis ya da urun olmalı.")
         pattern = store.orders_glob if tur == "siparis" else store.products_glob
@@ -205,30 +268,31 @@ def create_app(config_path: Path | None = None, keys_path: Path | None = None, r
 
         store.folder.mkdir(parents=True, exist_ok=True)
         target = store.folder / _pattern_name(pattern, want)
-        # Geçici ad desene uymaz ("yukleniyor-" ile başlar), yarım dosya hiçbir zaman okunmaz.
-        tmp = store.folder / f"yukleniyor-{target.name}"
-        tmp.write_bytes(data)
+        # Geçici adlar desene uymaz ("yukleniyor-" ile başlar), yarım dosya hiçbir zaman okunmaz.
+        raw = store.folder / f"yukleniyor-ham-{target.name}"
+        slim = store.folder / f"yukleniyor-{target.name}"
+        raw.write_bytes(data)
         try:
-            # Dosya okunamıyorsa klasöre girmesin; eski veri bozulmasın.
+            columns = list(mapping["orders" if tur == "siparis" else "products"].values())
+            minimize(raw, slim, columns)
             if tur == "siparis":
                 q = clean.Quality()
-                df = clean.load_orders(tmp, mapping, q)
+                df = clean.load_orders(slim, mapping, q)
                 info = f"{q.rows_used} sipariş satırı okundu."
             else:
-                df = clean.load_products(tmp, mapping)
+                df = clean.load_products(slim, mapping)
                 info = f"{len(df)} ürün okundu."
             if df.empty:
                 raise ValueError("dosyada kullanılabilir satır yok")
         except Exception as e:
-            tmp.unlink(missing_ok=True)
+            slim.unlink(missing_ok=True)
             raise HTTPException(400, f"Dosya okunamadı: {e}")
-        tmp.replace(target)
+        finally:
+            raw.unlink(missing_ok=True)
+        slim.replace(target)
         with store.lock:
             store._sig = None
-        return {"tamam": True, "mesaj": f"Yüklendi. {info}", "dosya": target.name}
+        return {"tamam": True, "mesaj": f"Yüklendi. {info} Yalnız rapor için gereken sütunlar saklandı.",
+                "dosya": target.name}
 
     return app
-
-
-def links(app: FastAPI, host: str, port: int) -> list[str]:
-    return [f"http://{host}:{port}/m/{slug}?k={app.state.keys[slug]}" for slug in app.state.stores]

@@ -11,13 +11,16 @@
   python cli.py sifre-kaydet                # SMTP parolasını Windows Kimlik Yöneticisi'ne kaydeder
   python cli.py zamanla --gun Monday --saat 08:00   # Windows Görev Zamanlayıcı'ya ekler
   python cli.py zamanla --kaldir
-  python cli.py panel                       # satıcı paneli: http://127.0.0.1:8791/m/<mağaza>?k=<anahtar>
+  python cli.py panel                       # satıcı paneli: http://127.0.0.1:8791 (e-posta + parola)
+  python cli.py kullanici-ekle --eposta satici@ornek.com --magaza "Örnek Mağaza"
+  python cli.py kullanicilar | kullanici-sil --eposta ... | parola --eposta ... --rastgele
 """
 from __future__ import annotations
 
 import argparse
 import getpass
 import os
+import secrets
 import subprocess
 import sys
 from datetime import date
@@ -116,12 +119,63 @@ def cmd_panel(args) -> None:
 
     from rapor import dashboard
     app = dashboard.create_app()
-    print("Satıcı paneli bağlantıları (gizli tutun, anahtar bağlantının içinde):")
-    for link in dashboard.links(app, args.host, args.port):
-        print("  " + link)
-    if args.host != "127.0.0.1":
-        print("UYARI: panel bu bilgisayarın dışından erişilebilir. Bu prototipte gerçek kullanıcı girişi ve HTTPS yok.")
-    uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
+    n = len(app.state.users.list_users())
+    print(f"Panel: http://{args.host}:{args.port}  ({n} kullanıcı)")
+    if n == 0:
+        print("Henüz kullanıcı yok. Eklemek için: python cli.py kullanici-ekle --eposta ... --magaza ...")
+    uvicorn.run(app, host=args.host, port=args.port, log_level="warning",
+                proxy_headers=True, forwarded_allow_ips=args.proxy)
+
+
+def _users():
+    from rapor import auth
+    return auth, auth.AuthStore(ROOT / "data" / "panel.db")
+
+
+def _store_slugs() -> dict[str, str]:
+    cfg = yaml.safe_load((ROOT / "config" / "magazalar.yaml").read_text(encoding="utf-8")) or {}
+    return {pipeline.slugify(m["ad"]): m["ad"] for m in cfg.get("magazalar", [])}
+
+
+def cmd_kullanici_ekle(args) -> None:
+    auth, users = _users()
+    stores = _store_slugs()
+    slug = pipeline.slugify(args.magaza)
+    if slug not in stores:
+        sys.exit(f"'{args.magaza}' config/magazalar.yaml içinde yok. Mevcut: {', '.join(stores.values())}")
+    pw = getpass.getpass("Parola (boş bırakırsan rastgele üretilir): ") if args.parola_sor else ""
+    generated = not pw
+    pw = pw or secrets.token_urlsafe(12)
+    try:
+        users.add_user(args.eposta, pw, slug)
+    except auth.AuthError as e:
+        sys.exit(str(e))
+    print(f"Eklendi: {args.eposta} -> {stores[slug]}")
+    if generated:
+        print(f"Geçici parola (bir kez gösterilir, güvenli bir kanaldan iletin): {pw}")
+
+
+def cmd_kullanici_sil(args) -> None:
+    _, users = _users()
+    print("Silindi." if users.remove_user(args.eposta) else "Böyle bir kullanıcı yok.")
+
+
+def cmd_kullanicilar(_args) -> None:
+    _, users = _users()
+    rows = users.list_users()
+    print("\n".join(f"{e}  ->  {s}" for e, s in rows) if rows else "Kullanıcı yok.")
+
+
+def cmd_parola(args) -> None:
+    auth, users = _users()
+    pw = secrets.token_urlsafe(12) if args.rastgele else getpass.getpass("Yeni parola: ")
+    try:
+        users.set_password(args.eposta, pw)
+    except auth.AuthError as e:
+        sys.exit(str(e))
+    print("Parola değişti; açık oturumlar kapatıldı.")
+    if args.rastgele:
+        print(f"Yeni geçici parola: {pw}")
 
 
 def main(argv=None) -> None:
@@ -160,7 +214,22 @@ def main(argv=None) -> None:
     pn = sub.add_parser("panel", help="satıcı panelini başlat")
     pn.add_argument("--host", default="127.0.0.1")
     pn.add_argument("--port", type=int, default=8791)
+    pn.add_argument("--proxy", default="127.0.0.1", help="X-Forwarded-* başlıklarına güvenilecek vekil sunucu IP'leri")
     pn.set_defaults(fn=cmd_panel)
+
+    ke = sub.add_parser("kullanici-ekle", help="panele kullanıcı ekle (tek mağazaya bağlı)")
+    ke.add_argument("--eposta", required=True)
+    ke.add_argument("--magaza", required=True, help="config/magazalar.yaml'daki mağaza adı")
+    ke.add_argument("--parola-sor", action="store_true", help="rastgele yerine parolayı sor")
+    ke.set_defaults(fn=cmd_kullanici_ekle)
+    ks = sub.add_parser("kullanici-sil")
+    ks.add_argument("--eposta", required=True)
+    ks.set_defaults(fn=cmd_kullanici_sil)
+    sub.add_parser("kullanicilar").set_defaults(fn=cmd_kullanicilar)
+    pd_ = sub.add_parser("parola", help="kullanıcının parolasını değiştir")
+    pd_.add_argument("--eposta", required=True)
+    pd_.add_argument("--rastgele", action="store_true")
+    pd_.set_defaults(fn=cmd_parola)
 
     args = ap.parse_args(argv)
     args.fn(args)

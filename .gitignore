@@ -5,3 +5,7 @@ data/
 raporlar/
 sample_data/
 logs/
+deploy/data/
+deploy/gelen/
+deploy/.env
+deploy/magazalar.yaml

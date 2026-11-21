@@ -60,18 +60,24 @@ Sınır: veriyi hâlâ birinin klasöre koyması gerekiyor. Pazaryeri API bağla
 ## Satıcı paneli
 
 ```powershell
-.venv\Scripts\python cli.py panel        # bağlantıları yazar, http://127.0.0.1:8791 üzerinde açılır
+.venv\Scripts\python cli.py kullanici-ekle --eposta satici@ornek.com --magaza "Örnek Mağaza"   # geçici parola yazar
+.venv\Scripts\python cli.py panel        # http://127.0.0.1:8791
+.venv\Scripts\python cli.py kullanicilar
+.venv\Scripts\python cli.py parola --eposta satici@ornek.com --rastgele
 ```
 
-Her mağazanın gizli bir bağlantısı var (`/m/<mağaza>?k=<anahtar>`, anahtarlar `data/panel_anahtarlari.json`).
+Giriş e-posta ve parolayla (`rapor/auth.py`): scrypt parola özeti, veritabanında yalnız özeti tutulan
+oturum belirteci, HttpOnly/SameSite çerez, 15 dakikada 5 hatalı deneme sınırı, başka siteden gelen
+form isteklerinin reddi, CSP ve diğer güvenlik başlıkları. Kayıt yok; kullanıcıyı yönetici açar ve
+her kullanıcı yalnız kendi mağazasını görür. İnternete açma adımları: [deploy/KURULUM.md](deploy/KURULUM.md).
+
 Panelde: dönem seçimi (7 gün / 28 gün / 8 hafta / 3 ay / özel tarih) ve önceki eşit dönemle karşılaştırma,
 6 KPI, günlük net kâr grafiği, uyarılar, sıralanabilir ürün tablosu, veri tazeliği ve dosya yükleme.
 
 - Veri "anlık" değil: en son yüklenen dosya kadar güncel; panel son sipariş zamanını gösterir.
 - Satıcı dışa aktarım dosyasını panelden yükleyebilir. Dosya önce okunup denetlenir; okunamazsa
   klasöre girmez, eski veri bozulmaz. Yüklenen dosya haftalık rapor da kullanır.
-- **Prototip erişimi:** gizli bağlantı kullanıcı girişi değildir. Varsayılan olarak yalnız bu bilgisayardan
-  açılır. İnternete açmadan önce kullanıcı girişi, HTTPS ve sunucu gerekir.
+- Yüklenen dosyadan yalnız raporun kullandığı sütunlar saklanır (KVKK: müşteri adı, adres, telefon diske yazılmaz).
 
 ## Akış
 

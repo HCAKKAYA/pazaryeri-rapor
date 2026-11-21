@@ -1,0 +1,28 @@
+# Sunucuda: docker compose up -d --build
+# Caddy, alan adı için Let's Encrypt sertifikasını kendisi alır ve yeniler.
+services:
+  panel:
+    build: ..
+    restart: unless-stopped
+    volumes:
+      - ./data:/app/data
+      - ./gelen:/app/gelen
+      - ./magazalar.yaml:/app/config/magazalar.yaml:ro
+    # Dışarıya açık değil; yalnız Caddy erişir.
+    expose: ["8791"]
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      PANEL_ALANI: ${PANEL_ALANI:?PANEL_ALANI tanımlı değil, ör. panel.ornek.com}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [panel]
+
+volumes:
+  caddy_data:
+  caddy_config:

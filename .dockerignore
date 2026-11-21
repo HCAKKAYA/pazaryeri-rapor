@@ -1,0 +1,11 @@
+.venv
+.git
+__pycache__
+.pytest_cache
+data
+gelen
+logs
+raporlar
+sample_data
+tests
+config/magazalar.yaml

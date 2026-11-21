@@ -1,0 +1,7 @@
+# Sunucudaki mağaza listesi. Bu dosyayı deploy/magazalar.yaml adıyla kopyalayıp doldurun.
+# klasor yolları konteyner içindedir; gelen/ sunucuda ./gelen klasörüne bağlıdır.
+magazalar:
+  - ad: Örnek Mağaza
+    klasor: /app/gelen/ornek-magaza
+    siparis_desen: "siparis*.xlsx"
+    urun_desen: "urun*.csv"
