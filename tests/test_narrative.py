@@ -79,7 +79,7 @@ def test_ai_path_clean(ctx):
 
 def test_invented_number_is_corrected_once(ctx):
     facts, found = ctx
-    bad = {"ozet": "Net kâr yaklaşık 27.000 ₺.", "oneriler": []}
+    bad = {"ozet": "Net kâr yaklaşık 27.000 ₺.", "oneriler": []}
     client = FakeClient(_resp(bad), _resp(_good(facts)))
     n = narrative.write(facts, found, client=client)
     assert n.kaynak == "yapay zeka" and len(client.calls) == 2
@@ -88,7 +88,7 @@ def test_invented_number_is_corrected_once(ctx):
 
 def test_invented_number_twice_falls_back(ctx):
     facts, found = ctx
-    bad = {"ozet": "Net kâr yaklaşık 27.000 ₺.", "oneriler": []}
+    bad = {"ozet": "Net kâr yaklaşık 27.000 ₺.", "oneriler": []}
     n = narrative.write(facts, found, client=FakeClient(_resp(bad), _resp(bad)))
     assert n.kaynak == "kural" and "27.000" in n.not_
     assert narrative.verify(narrative._all_text({"ozet": n.ozet, "oneriler": n.oneriler}), facts) == []

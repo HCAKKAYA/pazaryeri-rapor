@@ -17,7 +17,7 @@ def _tr(x: float, decimals: int) -> str:
 def tl(x: float | None, decimals: int = 0) -> str:
     if x is None:
         return "—"
-    s = _tr(abs(x), decimals) + " ₺"
+    s = _tr(abs(x), decimals) + " ₺"  # bölünmez boşluk: ₺ alt satıra düşmesin
     return "−" + s if _tr(abs(x), decimals).strip("0,.") and x < 0 else s
 
 

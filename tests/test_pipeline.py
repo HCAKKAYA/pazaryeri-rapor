@@ -25,8 +25,8 @@ def test_parse_rate(raw, expected):
 
 
 def test_formats():
-    assert tl(1234.6) == "1.235 ₺"
-    assert tl(-296) == "−296 ₺"
+    assert tl(1234.6) == "1.235 ₺"
+    assert tl(-296) == "−296 ₺"
     assert pct(-0.142, sign=True) == "−%14,2"
 
 

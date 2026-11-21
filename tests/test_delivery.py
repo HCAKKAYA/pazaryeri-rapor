@@ -20,8 +20,8 @@ STORY = Narrative(ozet="Kısa özet.", oneriler=[{"baslik": "Stok", "aciklama": 
 
 def test_rounding_is_stable():
     assert num(11497.4999999) == num(11497.5000001) == "11.498"
-    assert tl(-0.2) == "0 ₺"
-    assert tl(-296.4) == "−296 ₺"
+    assert tl(-0.2) == "0 ₺"
+    assert tl(-296.4) == "−296 ₺"
 
 
 def test_slugify():

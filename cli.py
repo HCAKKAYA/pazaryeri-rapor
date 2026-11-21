@@ -11,6 +11,7 @@
   python cli.py sifre-kaydet                # SMTP parolasını Windows Kimlik Yöneticisi'ne kaydeder
   python cli.py zamanla --gun Monday --saat 08:00   # Windows Görev Zamanlayıcı'ya ekler
   python cli.py zamanla --kaldir
+  python cli.py panel                       # satıcı paneli: http://127.0.0.1:8791/m/<mağaza>?k=<anahtar>
 """
 from __future__ import annotations
 
@@ -110,6 +111,19 @@ Register-ScheduledTask -TaskName '{TASK_NAME}' -Action $a -Trigger $t -Settings 
     print("Bilgisayar o saatte kapalıysa açıldığında çalışır. Kayıtlar: logs/")
 
 
+def cmd_panel(args) -> None:
+    import uvicorn
+
+    from rapor import dashboard
+    app = dashboard.create_app()
+    print("Satıcı paneli bağlantıları (gizli tutun, anahtar bağlantının içinde):")
+    for link in dashboard.links(app, args.host, args.port):
+        print("  " + link)
+    if args.host != "127.0.0.1":
+        print("UYARI: panel bu bilgisayarın dışından erişilebilir. Bu prototipte gerçek kullanıcı girişi ve HTTPS yok.")
+    uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
+
+
 def main(argv=None) -> None:
     if sys.stdout is None:  # pythonw.exe ile (zamanlayıcıdan) çalışırken konsol yok
         sys.stdout = sys.stderr = open(os.devnull, "w", encoding="utf-8")
@@ -142,6 +156,11 @@ def main(argv=None) -> None:
     z.add_argument("--saat", default="08:00")
     z.add_argument("--kaldir", action="store_true")
     z.set_defaults(fn=cmd_zamanla)
+
+    pn = sub.add_parser("panel", help="satıcı panelini başlat")
+    pn.add_argument("--host", default="127.0.0.1")
+    pn.add_argument("--port", type=int, default=8791)
+    pn.set_defaults(fn=cmd_panel)
 
     args = ap.parse_args(argv)
     args.fn(args)

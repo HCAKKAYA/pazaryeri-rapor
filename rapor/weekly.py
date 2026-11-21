@@ -22,7 +22,8 @@ log = logging.getLogger("haftalik")
 
 
 def _newest(folder: Path, pattern: str) -> Path | None:
-    files = [p for p in folder.glob(pattern) if p.is_file() and not p.name.startswith("~$")]
+    files = [p for p in folder.glob(pattern)
+             if p.is_file() and not p.name.startswith(("~$", "yukleniyor-"))]
     return max(files, key=lambda p: p.stat().st_mtime) if files else None
 
 

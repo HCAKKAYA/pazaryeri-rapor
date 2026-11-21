@@ -143,6 +143,41 @@ def products(con: duckdb.DuckDBPyConnection, start: date, end: date) -> pd.DataF
     )
 
 
+def daily(con: duckdb.DuckDBPyConnection, start: date, end: date) -> pd.DataFrame:
+    """Gün gün brüt satış, net kâr ve sipariş. Toplamı period() ile birebir aynıdır:
+    kargo, siparişin ilk satırının gününe yazılır."""
+    return con.execute("""
+        WITH l AS (SELECT * FROM lines WHERE day BETWEEN $s AND $e),
+        ship AS (
+            SELECT MIN(day) AS day, MAX(shipping_fee) AS fee
+            FROM l WHERE status IN ('delivered', 'returned') GROUP BY order_id
+        ),
+        sday AS (SELECT day, SUM(fee) AS fee FROM ship GROUP BY day),
+        g AS (
+            SELECT day,
+                   SUM(gross) FILTER (WHERE status = 'delivered')                    AS gross,
+                   SUM(gross - commission - cogs) FILTER (WHERE status = 'delivered') AS contrib,
+                   COUNT(DISTINCT order_id) FILTER (WHERE status = 'delivered')     AS orders
+            FROM l GROUP BY day
+        ),
+        days AS (
+            SELECT CAST(range AS DATE) AS day
+            FROM range(CAST($s AS TIMESTAMP), CAST($e AS TIMESTAMP) + INTERVAL 1 DAY, INTERVAL 1 DAY)
+        )
+        SELECT days.day,
+               COALESCE(g.gross, 0)                             AS gross,
+               COALESCE(g.contrib, 0) - COALESCE(sday.fee, 0)   AS net_profit,
+               COALESCE(g.orders, 0)                            AS orders
+        FROM days LEFT JOIN g USING (day) LEFT JOIN sday USING (day)
+        ORDER BY days.day
+    """, {"s": start, "e": end}).df()
+
+
+def data_bounds(con: duckdb.DuckDBPyConnection) -> tuple[date, date, object]:
+    """Verideki ilk gün, son gün ve son siparişin zamanı."""
+    return con.execute("SELECT MIN(day), MAX(day), MAX(order_date) FROM lines").fetchone()
+
+
 def pct_change(cur: float | None, prev: float | None) -> float | None:
     if cur is None or prev in (None, 0):
         return None
