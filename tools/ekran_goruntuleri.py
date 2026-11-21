@@ -77,8 +77,6 @@ def main() -> None:
 
             page = logged_in(ctx(1280, 820))
             page.screenshot(path=OUT / "panel.png")
-            page.locator("#tbl").scroll_into_view_if_needed()
-            page.locator(".card", has=page.locator("#tbl")).screenshot(path=OUT / "panel-urunler.png")
 
             page = logged_in(ctx(1280, 820, "dark"))
             page.screenshot(path=OUT / "panel-koyu.png")
