@@ -191,7 +191,7 @@ def _load_env() -> None:
     """Proje kökündeki .env dosyasından ANTHROPIC_API_KEY gibi değişkenleri yükler (varsa)."""
     env = ROOT / ".env"
     if env.exists():
-        for line in env.read_text(encoding="utf-8").splitlines():
+        for line in env.read_text(encoding="utf-8-sig").splitlines():  # Not Defteri BOM ekleyebilir
             if "=" in line and not line.lstrip().startswith("#"):
                 k, v = line.split("=", 1)
                 os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))

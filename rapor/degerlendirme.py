@@ -107,6 +107,9 @@ class Sonuc:
     cevap: str
     sure: float
     deneme: int
+    tokens_in: int = 0
+    tokens_out: int = 0
+    maliyet: float = 0.0
 
 
 def run(client=None, only: list[str] | None = None, progress=print) -> list[Sonuc]:
@@ -131,9 +134,9 @@ def run(client=None, only: list[str] | None = None, progress=print) -> list[Sonu
             ok, why = compare(soru.run_sql(con, it["sql"]), c.ham, bool(it.get("sirali")))
         if con.execute("SELECT ROUND(SUM(net_kar), 2), COUNT(*) FROM satis").fetchone() != fingerprint:
             raise RuntimeError(f"VERİ DEĞİŞTİ: {it['id']}")   # olmamalı; sandbox ve guard bunu engeller
-        s = Sonuc(it["id"], it["soru"], ok, why, c.sql, c.cevap, dt, c.deneme)
+        s = Sonuc(it["id"], it["soru"], ok, why, c.sql, c.cevap, dt, c.deneme, c.tokens_in, c.tokens_out, c.maliyet)
         out.append(s)
-        progress(f"{'✓' if ok else '✗'} {it['id']:<28} {dt:5.1f} sn  {why}")
+        progress(f"{'✓' if ok else '✗'} {it['id']:<28} {dt:5.1f} sn  ${c.maliyet:.3f}  {why}")
     return out
 
 
@@ -142,7 +145,10 @@ def report(results: list[Sonuc], path: Path) -> Path:
     lines = [f"# 'Verine sor' değerlendirmesi · {date.today():%d.%m.%Y}", "",
              f"Model: `{soru.MODEL}` · Doğru: **{ok}/{n} (%{ok / n * 100:.0f})** · "
              f"Ortalama süre: {sum(r.sure for r in results) / n:.1f} sn · "
-             f"İkinci denemeye kalan: {sum(r.deneme == 2 for r in results)}", "",
+             f"İkinci denemeye kalan: {sum(r.deneme == 2 for r in results)} · "
+             f"Token: {sum(r.tokens_in for r in results):,} giriş / {sum(r.tokens_out for r in results):,} çıkış · "
+             f"Tahmini maliyet: ${sum(r.maliyet for r in results):.2f} "
+             f"(soru başına ${sum(r.maliyet for r in results) / n:.3f})", "",
              "| | Soru | Not |", "|---|---|---|"]
     for r in results:
         lines.append(f"| {'✓' if r.gecti else '✗'} | {r.soru} | {r.neden.replace('|', '/')} |")
