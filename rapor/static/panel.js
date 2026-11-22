@@ -226,6 +226,9 @@
     const byGross = [...d.urunler].filter(u => u.brut > 0).sort((a, b) => b.brut - a.brut);
     const share = key => byGross.map(u => u[key] / u.brut * 100);
     const series = [["Net kâr", "net", "--c1"], ["Ürün maliyeti", "maliyet", "--c2"], ["Kargo", "kargo", "--c3"], ["Komisyon", "komisyon", "--c4"]];
+    // Eksen: zarar eden ürün varsa sıfırın solu, giderler brütü aşıyorsa %100'ün sağı; yoksa 0-100.
+    const lo = Math.min(0, ...byGross.map(u => u.net / u.brut * 100));
+    const hi = Math.max(100, ...byGross.map(u => series.reduce((s, [, k]) => s + Math.max(0, u[k]), 0) / u.brut * 100));
     draw("ch-kirilim", {
       type: "bar",
       data: { labels: byGross.map(u => u.urun),
@@ -239,7 +242,9 @@
             label: it => { const u = byGross[it.dataIndex], key = series[it.datasetIndex][1];
                            return `${series[it.datasetIndex][0]}: ${pct1(it.raw)} (${fmtTL(u[key])})`; } } } },
         scales: { x: { stacked: true, grid: { color: css("--line") }, border: { display: false },
-                       ticks: { color: css("--ink2"), callback: v => "%" + v } },
+                       min: Math.floor(lo / 10) * 10, max: Math.ceil(hi / 10) * 10,
+                       ticks: { color: css("--ink2"), stepSize: 10,
+                                callback: v => v % 20 ? "" : (v < 0 ? "−" : "") + "%" + Math.abs(v) } },
                   y: { stacked: true, grid: { display: false }, ticks: { color: css("--ink2"), autoSkip: false } } } },
     });
   }

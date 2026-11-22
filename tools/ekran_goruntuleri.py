@@ -78,6 +78,13 @@ def main() -> None:
             page = logged_in(ctx(1280, 820))
             page.screenshot(path=OUT / "panel.png")
 
+            # Ekranın altında kalan kâr grafikleri: şelale, ürünlere göre net kâr, gider kırılımı
+            top = page.locator(".grid2b").bounding_box()
+            bottom = page.locator("#ch-kirilim").locator("xpath=ancestor::div[contains(@class,'card')][1]").bounding_box()
+            page.screenshot(path=OUT / "grafikler.png", full_page=True,
+                            clip={"x": top["x"] - 16, "y": top["y"] - 16, "width": top["width"] + 32,
+                                  "height": bottom["y"] + bottom["height"] - top["y"] + 32})
+
             page = logged_in(ctx(1280, 820, "dark"))
             page.screenshot(path=OUT / "panel-koyu.png")
 

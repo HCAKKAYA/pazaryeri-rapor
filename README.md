@@ -30,9 +30,11 @@ Pazaryeri panelleri ciroyu gösteriyor ama satıcının cebine kalanı göstermi
 | **Haftalık rapor** | HTML ve PDF. Net kâr, önceki haftayla karşılaştırma, uyarılar, son 8 haftanın grafiği, ürün bazında kâr kırılımı (brüt → komisyon → kargo → maliyet → net, marj, adet başına kâr), stok ve iade tablosu, veri kalitesi notu. |
 | **E-posta** | Telefonda okunacak kısa bir gövde, PDF eki. Varsayılan olarak yalnız taslak yazılır, gönderim ayrıca açılır. |
 | **Haftalık zamanlama** | Her pazartesi kendiliğinden çalışır. Veri güncel değilse eski raporu tekrar göndermez, aynı haftayı iki kez göndermez. |
-| **Satıcı paneli** | E-posta ve parolayla giriş. Dönem seçimi ve önceki eşit dönemle karşılaştırma, günlük net kâr grafiği, sıralanabilir ürün bazında net kâr tablosu (toplam satırıyla), stok ve iade tablosu, dosya yükleme. |
+| **Satıcı paneli** | E-posta ve parolayla giriş. Dönem seçimi ve önceki eşit dönemle karşılaştırma, günlük net kâr grafiği, brüt satıştan net kâra şelale, ürünlere göre net kâr ve ürün başına gider kırılımı grafikleri, sıralanabilir ürün bazında net kâr tablosu (toplam satırıyla), stok ve iade tablosu, dosya yükleme. Açık, koyu ya da sistem teması seçilebilir. |
 | **Verine sor** | Panelde Türkçe soru: "Kargo cironun yüzde kaçını yiyor?" Claude soruyu SQL'e çevirir, sorgu salt okuma bir bağlantıda çalışır, cevap tablo ve kısa bir cümleyle gelir; kullanılan SQL görülebilir. Üç modelle, istemi görmeden yazılmış bir test setiyle de ölçüldü (aşağıda). |
 | **Yapay zeka yorumu** (isteğe bağlı) | Claude, hesaplanmış sayılardan 2-3 cümlelik bir özet ve en çok 3 öneri yazar; metindeki her sayı hesaplarla karşılaştırılır. Gerçek modelle 3 kez üretildi: üçünde de denetimden geçti, sayılar doğru ölçülere bağlıydı, sebep iddiaları "olabilir" diye işaretliydi ([Sonnet](eval/yorum-deneme-sonnet-2026-11-22.json) ve [Opus](eval/yorum-deneme-opus-2026-11-22.json) çıktıları, [örnek rapor](docs/ornek-rapor.pdf)). Anahtar yoksa kural tabanlı özet kullanılır. |
+
+![Brüt satıştan net kâra şelale, ürünlere göre net kâr ve ürün başına gider kırılımı](docs/img/grafikler.png)
 
 ## Verine sor: nasıl ölçüldü
 
@@ -121,6 +123,7 @@ flowchart LR
 
 - **Değişen yuvarlama.** Aynı veri, iki çalıştırmada bir üründe 11.497 ₺, diğerinde 11.498 ₺ gösterdi. Kayan noktalı toplamlar, toplama sırasına göre ,5 sınırının bir altında ya da üstünde kalabiliyordu. Biçimlendirme önce kuruşa, sonra yukarı yuvarlayacak şekilde değiştirildi.
 - **Giriş formu reddediliyordu.** Panel otomatik testlerden geçti ama gerçek tarayıcıda giriş yapılamadı. Sayfa `Referrer-Policy: no-referrer` ile sunulunca tarayıcı formu `Origin: null` başlığıyla gönderiyor, CSRF denetimi de bunu yabancı kaynak sayıyordu. Politika `same-origin` yapıldı. Test istemcisi Origin başlığı göndermediği için bu hatayı ancak tarayıcıda denemek gösterdi.
+- **Grafikler telefonda taşıyordu.** Yeni grafikler masaüstünde doğru görünüyordu, 375 piksel genişlikte sayfa yana kayıyordu. Izgara öğelerinin en küçük genişliği varsayılan olarak içerikleri kadar; canvas önceki genişliğini koruyunca kart daralamıyordu. Izgara öğelerine `min-width: 0` verildi. Bu hata önceden var olan günlük grafikte de vardı ama ancak dar ekranda denenince görüldü.
 - **Türkçe büyük harf.** Python'da `"kritik".upper()` sonucu `KRITIK` oluyor. Uyarı etiketleri için ayrı bir Türkçe karşılık tablosu kullanıldı.
 
 ## Teknoloji
