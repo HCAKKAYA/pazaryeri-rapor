@@ -1,6 +1,6 @@
 # Pazaryeri Rapor
 
-[![testler](https://github.com/HCAKKAYA/pazaryeri-rapor/actions/workflows/testler.yml/badge.svg)](https://github.com/HCAKKAYA/pazaryeri-rapor/actions/workflows/testler.yml)
+[![testler](https://github.com/HCAKKAYA/pazaryeri-rapor/actions/workflows/testler.yml/badge.svg)](https://github.com/HCAKKAYA/pazaryeri-rapor/actions/workflows/testler.yml) [![docker](https://github.com/HCAKKAYA/pazaryeri-rapor/actions/workflows/docker.yml/badge.svg)](https://github.com/HCAKKAYA/pazaryeri-rapor/actions/workflows/docker.yml)
 
 Trendyol, Hepsiburada gibi pazaryerlerinde satış yapan küçük işletmeler için haftalık kâr raporu ve satıcı paneli.
 
@@ -125,7 +125,7 @@ flowchart LR
 
 ## Teknoloji
 
-Python 3.12, pandas, DuckDB, Jinja2, matplotlib, FastAPI, Chart.js, Anthropic API (isteğe bağlı), pytest. PDF için kurulu Chrome ya da Edge başsız modda kullanılıyor, ek kurulum gerekmiyor. Sunucu kurulumu için Dockerfile ve Caddy (otomatik HTTPS) ayarları `deploy/` klasöründe.
+Python 3.12, pandas, DuckDB, Jinja2, matplotlib, FastAPI, Chart.js, Anthropic API (isteğe bağlı), pytest. PDF için kurulu Chrome ya da Edge başsız modda kullanılıyor, ek kurulum gerekmiyor. Sunucu kurulumu için Dockerfile ve Caddy (otomatik HTTPS) ayarları `deploy/` klasöründe. Docker imajı her gönderimde GitHub Actions'ta derlenip demo modunda çalıştırılıyor; giriş sayfası, demo girişi, veri API'si, güvenlik başlıkları, oturumsuz isteğin reddi ve konteynerin root olmayan kullanıcıyla çalıştığı kontrol ediliyor ([docker.yml](.github/workflows/docker.yml)).
 
 <table>
 <tr>
