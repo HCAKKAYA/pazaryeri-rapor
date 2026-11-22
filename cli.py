@@ -43,6 +43,7 @@ def cmd_ornek(_args) -> None:
 
 
 def cmd_calistir(args) -> None:
+    _load_env()   # ANTHROPIC_API_KEY (yorum) ve SMTP_* için; yoksa rapor kural tabanlı özetle çıkar
     orders_path = Path(args.siparis or ROOT / "sample_data" / "siparisler.xlsx")
     products_path = Path(args.urun or ROOT / "sample_data" / "urunler.csv")
     if not orders_path.exists():
@@ -66,6 +67,7 @@ def cmd_calistir(args) -> None:
 
 
 def cmd_haftalik(args) -> None:
+    _load_env()   # zamanlanmış görevde de yapay zeka yorumu için anahtar .env'den okunur
     today = date.fromisoformat(args.tarih) if args.tarih else date.today()
     log_path = weekly.setup_logging(ROOT / "logs", today)
     results = weekly.run_all(today=today, force=args.zorla, dry_run=args.deneme, use_ai=not args.yz_yok)

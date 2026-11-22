@@ -32,7 +32,7 @@ Pazaryeri panelleri ciroyu gösteriyor ama satıcının cebine kalanı göstermi
 | **Haftalık zamanlama** | Her pazartesi kendiliğinden çalışır. Veri güncel değilse eski raporu tekrar göndermez, aynı haftayı iki kez göndermez. |
 | **Satıcı paneli** | E-posta ve parolayla giriş. Dönem seçimi ve önceki eşit dönemle karşılaştırma, günlük net kâr grafiği, sıralanabilir ürün bazında net kâr tablosu (toplam satırıyla), stok ve iade tablosu, dosya yükleme. |
 | **Verine sor** | Panelde Türkçe soru: "Kargo cironun yüzde kaçını yiyor?" Claude soruyu SQL'e çevirir, sorgu salt okuma bir bağlantıda çalışır, cevap tablo ve kısa bir cümleyle gelir; kullanılan SQL görülebilir. Üç modelle, istemi görmeden yazılmış bir test setiyle de ölçüldü (aşağıda). |
-| **Yapay zeka yorumu** (isteğe bağlı) | Claude, hesaplanmış sayılardan 2-3 cümlelik bir özet ve öneriler yazar. Kapalıyken kural tabanlı özet kullanılır. |
+| **Yapay zeka yorumu** (isteğe bağlı) | Claude, hesaplanmış sayılardan 2-3 cümlelik bir özet ve en çok 3 öneri yazar; metindeki her sayı hesaplarla karşılaştırılır. Gerçek modelle 3 kez üretildi: üçünde de denetimden geçti, sayılar doğru ölçülere bağlıydı, sebep iddiaları "olabilir" diye işaretliydi ([çıktılar](eval/yorum-deneme-2026-11-22.json), [örnek rapor](docs/ornek-rapor.pdf)). Anahtar yoksa kural tabanlı özet kullanılır. |
 
 ## Verine sor: nasıl ölçüldü
 

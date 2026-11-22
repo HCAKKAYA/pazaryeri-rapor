@@ -1,0 +1,181 @@
+{
+ "facts": {
+  "hafta": "2026-W46 (09.11.2026 - 15.11.2026)",
+  "bu_hafta": {
+   "net_kar": "26.902 ₺",
+   "brut_satis": "134.713 ₺",
+   "siparis": "493",
+   "sepet_ortalamasi": "273 ₺",
+   "kar_marji": "%20,0",
+   "komisyon": "23.198 ₺",
+   "kargo": "35.176 ₺",
+   "iade_orani": "%8,7"
+  },
+  "gecen_hafta": {
+   "net_kar": "31.373 ₺",
+   "brut_satis": "149.008 ₺",
+   "siparis": "465",
+   "kar_marji": "%21,1"
+  },
+  "degisim": {
+   "net_kar": "−%14,2",
+   "brut_satis": "−%9,6",
+   "siparis": "+%6,0",
+   "sepet_ortalamasi": "−%14,7"
+  },
+  "son_8_hafta_net_kar": [
+   {
+    "hafta_basi": "21.09",
+    "net_kar": "35.077 ₺"
+   },
+   {
+    "hafta_basi": "28.09",
+    "net_kar": "25.466 ₺"
+   },
+   {
+    "hafta_basi": "05.10",
+    "net_kar": "31.526 ₺"
+   },
+   {
+    "hafta_basi": "12.10",
+    "net_kar": "30.988 ₺"
+   },
+   {
+    "hafta_basi": "19.10",
+    "net_kar": "32.418 ₺"
+   },
+   {
+    "hafta_basi": "26.10",
+    "net_kar": "37.580 ₺"
+   },
+   {
+    "hafta_basi": "02.11",
+    "net_kar": "31.373 ₺"
+   },
+   {
+    "hafta_basi": "09.11",
+    "net_kar": "26.902 ₺"
+   }
+  ],
+  "en_cok_kazandiran_urunler": [
+   {
+    "urun": "Kablosuz Kulaklık",
+    "net_kar": "4.937 ₺",
+    "adet": "19"
+   },
+   {
+    "urun": "Termos 500 ml",
+    "net_kar": "3.412 ₺",
+    "adet": "49"
+   },
+   {
+    "urun": "Masa Lambası LED",
+    "net_kar": "3.335 ₺",
+    "adet": "25"
+   }
+  ],
+  "en_az_kazandiran_urunler": [
+   {
+    "urun": "Spor Şişesi",
+    "net_kar": "1.105 ₺",
+    "adet": "35"
+   },
+   {
+    "urun": "Laptop Standı",
+    "net_kar": "−296 ₺",
+    "adet": "27"
+   }
+  ],
+  "uyarilar": [
+   {
+    "seviye": "kritik",
+    "baslik": "Kablosuz Kulaklık: stokta yok",
+    "ayrinti": "Son 28 günde günde ortalama 5,9 adet satıyordu. Stok gelene kadar günde yaklaşık 1.505 ₺ net kâr kaçıyor."
+   },
+   {
+    "seviye": "kritik",
+    "baslik": "Laptop Standı: zararına satılıyor",
+    "ayrinti": "Komisyon, kargo ve maliyetten sonra adet başına −15 ₺; son 28 günde toplam −1.496 ₺."
+   },
+   {
+    "seviye": "uyarı",
+    "baslik": "Termos 500 ml: stok azalıyor",
+    "ayrinti": "18 adet kaldı, mevcut hızla yaklaşık 3 gün yeter."
+   },
+   {
+    "seviye": "uyarı",
+    "baslik": "Telefon Kılıfı Şeffaf: iade oranı yüksek",
+    "ayrinti": "Son 28 günde 470 adetin 108 tanesi iade (%23,0). Ürün açıklaması, beden/uyum bilgisi ya da kalite kontrol edilmeli."
+   }
+  ],
+  "uyari_sayisi": 4
+ },
+ "runs": [
+  {
+   "tur": 1,
+   "sure_sn": 11.1,
+   "kaynak": "yapay zeka",
+   "not": "",
+   "ozet": "Bu hafta net kâr 26.902 ₺ oldu ve geçen haftaya göre −%14,2 geriledi. Sipariş sayısı +%6,0 artmasına rağmen sepet ortalaması −%14,7 düştüğü için brüt satış −%9,6 azaldı. En çok kazandıran ürününüz Kablosuz Kulaklık şu an stokta yok ve bu durum en büyük kâr kaybınız.",
+   "oneriler": [
+    {
+     "baslik": "Kablosuz Kulaklık stokunu hemen yenileyin",
+     "aciklama": "Bu hafta en çok kâr getiren ürününüz (4.937 ₺) stokta yok. Stok gelene kadar günde yaklaşık 1.505 ₺ net kâr kaçıyor. Tedarikçinizle bu hafta sipariş verip teslimi hızlandırın. Sepet ortalamasındaki düşüşün bir kısmı da bu yüksek fiyatlı ürünün satılamamasından kaynaklanıyor olabilir."
+    },
+    {
+     "baslik": "Termos 500 ml için sipariş verin",
+     "aciklama": "18 adet kaldı ve mevcut hızla yaklaşık 3 gün yeter. Bu hafta 3.412 ₺ net kârla ikinci sıradaki ürününüz. Kulaklıktaki durumun burada da yaşanmaması için yeniden siparişi bugün verin."
+    },
+    {
+     "baslik": "Laptop Standı fiyatını veya maliyetini düzeltin",
+     "aciklama": "Komisyon, kargo ve maliyetten sonra adet başına −15 ₺ zarar ediyorsunuz; son 28 günde toplam −1.496 ₺. Bu hafta fiyatı artırın, kargo maliyetini düşürmenin yolunu arayın ya da düzelene kadar satışı durdurun. Ayrıca Telefon Kılıfı Şeffaf ürününde iade oranı %23,0; ürün açıklamasını ve uyum bilgisini gözden geçirin."
+    }
+   ],
+   "denetim_disi_sayilar": []
+  },
+  {
+   "tur": 2,
+   "sure_sn": 8.0,
+   "kaynak": "yapay zeka",
+   "not": "",
+   "ozet": "Bu hafta net kârınız 26.902 ₺ oldu; geçen haftaya göre −%14,2 düştü. Sipariş sayısı +%6,0 artmasına rağmen sepet ortalaması −%14,7 geriledi ve brüt satış −%9,6 azaldı. En çok kazandıran ürününüz Kablosuz Kulaklık şu an stokta yok ve bu durum günde yaklaşık 1.505 ₺ net kâra mal oluyor.",
+   "oneriler": [
+    {
+     "baslik": "Kablosuz Kulaklık stoğunu hemen yenileyin",
+     "aciklama": "Bu hafta en çok kazandıran ürününüz olan Kablosuz Kulaklık stokta yok. Son 28 günde günde ortalama 5,9 adet satıyordu ve stok gelene kadar günde yaklaşık 1.505 ₺ net kâr kaçıyor. Tedarikçinizle bu hafta sipariş verip teslim tarihini netleştirin. Sepet ortalamasındaki düşüş de bu yüksek fiyatlı ürünün eksikliğiyle ilgili olabilir."
+    },
+    {
+     "baslik": "Termos 500 ml için bugün sipariş verin",
+     "aciklama": "Termos 500 ml bu hafta 3.412 ₺ net kârla ikinci sırada. 18 adet kaldı ve mevcut hızla yaklaşık 3 gün yeter. Kulaklıktaki stok kesintisinin bu üründe de yaşanmaması için yeni stoğu şimdiden isteyin."
+    },
+    {
+     "baslik": "Laptop Standı fiyatını veya maliyetini düzeltin",
+     "aciklama": "Laptop Standı komisyon, kargo ve maliyetten sonra adet başına −15 ₺ zarar ediyor; son 28 günde toplam −1.496 ₺. Bu hafta fiyatı adet başı zararı kapatacak şekilde yükseltin ya da daha ucuz kargo veya tedarik seçeneği bulun. İkisi de mümkün değilse ürünü satıştan kaldırmayı düşünün."
+    }
+   ],
+   "denetim_disi_sayilar": []
+  },
+  {
+   "tur": 3,
+   "sure_sn": 7.1,
+   "kaynak": "yapay zeka",
+   "not": "",
+   "ozet": "Bu hafta net kârınız 26.902 ₺ oldu; geçen haftaya göre −%14,2 düştü. Sipariş sayısı +%6,0 artarken sepet ortalaması −%14,7 geriledi, kâr marjı %21,1'den %20,0'a indi. En çok kazandıran ürününüz Kablosuz Kulaklık şu an stokta yok ve bu durum günde yaklaşık 1.505 ₺ net kâr kaybına yol açıyor.",
+   "oneriler": [
+    {
+     "baslik": "Kablosuz Kulaklık stoğunu hemen yenileyin",
+     "aciklama": "Bu hafta en çok kazandıran ürününüz 4.937 ₺ net kârla Kablosuz Kulaklık ama stokta yok. Son 28 günde günde ortalama 5,9 adet satıyordu ve stok gelene kadar günde yaklaşık 1.505 ₺ net kâr kaçıyor. Tedarikçinizle bu hafta en hızlı teslim seçeneğini konuşun."
+    },
+    {
+     "baslik": "Termos 500 ml için şimdiden sipariş verin",
+     "aciklama": "18 adet kaldı ve mevcut hızla yaklaşık 3 gün yeter. Bu hafta 3.412 ₺ net kârla ikinci sıradaki ürününüz; kulaklıkta yaşanan stok kesintisinin burada da yaşanmaması için siparişi bugün verin."
+    },
+    {
+     "baslik": "Laptop Standı fiyatını gözden geçirin",
+     "aciklama": "Komisyon, kargo ve maliyetten sonra adet başına −15 ₺ zarar ediyorsunuz; son 28 günde toplam −1.496 ₺. Fiyatı artırın, daha ucuz kargo ya da tedarik seçeneği arayın; bunlar mümkün değilse satışı durdurmayı düşünün. Ayrıca iade oranı %23,0 olan Telefon Kılıfı Şeffaf için ürün açıklamasını ve uyum bilgisini kontrol edin."
+    }
+   ],
+   "denetim_disi_sayilar": []
+  }
+ ]
+}

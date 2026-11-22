@@ -80,9 +80,12 @@ def build(out: Path, today: date | None = None, make_pdf: bool = True, client=No
         store.con.close()
         store.qcon.close()
 
-        # Son tam haftanın raporu (kural tabanlı özet; demo API anahtarı kullanmaz).
+        # Son tam haftanın raporu. Anahtar varsa "Bu haftanın özeti" gerçek modelle yazılır (sayıları
+        # denetlenir; tutmazsa kural tabanlı özete düşer). Anahtar yoksa kural tabanlı özet.
+        # (Testlerde sahte istemci verilir; rapor yorumu o istemciyi kullanmadığı için o durumda ağa çıkılmaz.)
+        use_ai = client is None and bool(os.environ.get("ANTHROPIC_API_KEY"))
         res = pipeline.run(demo.STORE_NAME, folder / "siparisler.xlsx", folder / "urunler.csv",
-                           use_ai=False, make_pdf=make_pdf, out_dir=tmp / "rapor", db_dir=tmp / "db")
+                           use_ai=use_ai, make_pdf=make_pdf, out_dir=tmp / "rapor", db_dir=tmp / "db")
         shutil.copy(res.html, out / "rapor.html")
         written.append(out / "rapor.html")
         report_link = "rapor.html"
