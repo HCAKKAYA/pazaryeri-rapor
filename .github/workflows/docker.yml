@@ -1,0 +1,57 @@
+name: docker
+
+# Sunucu kurulum paketinin (Dockerfile) gerçekten derlenip çalıştığını her gönderimde kanıtlar.
+# İmaj hiçbir yere yüklenmez, anahtar/şifre kullanılmaz: derlenir, demo modunda çalıştırılır,
+# giriş sayfası ve veri API'si denenir, sonra silinir.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  derle-ve-dene:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: İmajı derle
+        run: docker build -t pazaryeri-panel:ci .
+
+      - name: Demo modunda çalıştır
+        # PANEL_HTTPS=0: deneme HTTP üzerinden yapılıyor; gerçek kurulumda Caddy HTTPS sağlar ve 1 kalır.
+        run: |
+          docker run -d --name panel -p 8791:8791 -e PANEL_DEMO=1 -e PANEL_HTTPS=0 pazaryeri-panel:ci
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8791/giris > /dev/null; then echo "hazır ($i sn)"; exit 0; fi
+            sleep 1
+          done
+          echo "Panel 30 saniyede açılmadı"; docker logs panel; exit 1
+
+      - name: Giriş sayfası, demo girişi ve veri API'si
+        run: |
+          set -e
+          curl -fsS http://127.0.0.1:8791/giris | grep -q "Demo'ya gir"
+          # Demo girişi: oturum çerezi alınır, panel ve özet API'si o çerezle istenir.
+          curl -fsS -c cerez.txt -o /dev/null -X POST http://127.0.0.1:8791/demo
+          curl -fsS -b cerez.txt http://127.0.0.1:8791/panel | grep -q "Demo Mağaza"
+          curl -fsS -b cerez.txt http://127.0.0.1:8791/api/ozet > ozet.json
+          python3 -c "import json; d=json.load(open('ozet.json')); assert d['demo'] is True and len(d['urunler']) == 12 and d['kpi'][0]['ad'] == 'Net kâr', d; print('özet:', d['kpi'][0]['deger'], '·', len(d['urunler']), 'ürün')"
+          # Güvenlik başlıkları imajda da yerinde mi?
+          curl -fsSI http://127.0.0.1:8791/giris | grep -qi "content-security-policy"
+          # Oturumsuz API isteği reddedilmeli.
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8791/api/ozet)" = "401"
+
+      - name: Konteyner kullanıcısı root değil
+        run: test "$(docker exec panel id -u)" = "10001"
+
+      - name: Hata olursa günlükleri göster
+        if: failure()
+        run: docker logs panel || true
+
+      - name: Temizle
+        if: always()
+        run: docker rm -f panel || true
