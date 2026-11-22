@@ -1,0 +1,119 @@
+# GÖRÜLMEMİŞ TEST SETİ (holdout)
+#
+# Sorular: Hüseyin, 2026-11-22. Referans SQL'ler: Claude, aynı gün, soruları değiştirmeden.
+#
+# Kurallar
+# - Sorular yazılırken soru.py'deki istemler (SQL_SYSTEM, ANSWER_SYSTEM) dondurulmuştur:
+#   son değiştiği sürüm git 336886e (ölçüm öncesi metin karşılaştırmasıyla doğrulandı). Bu sette çıkan
+#   hatalara bakarak istem DEĞİŞTİRİLMEZ; değiştirilirse bu set artık "görülmemiş" sayılmaz.
+# - Referanslar yalnız soruyu cevaplamak için gereken sütunları döndürür; model fazladan sütun
+#   ekleyebilir (puanlayıcı buna izin verir).
+# - beklenen: yorumlu → soru belirsiz, tek doğru cevabı yok. Model makul bir yorumla cevap verirse
+#   (durum=ok) geçer ve SQL'i raporda elle incelenir; "cevaplanamaz" demesi kalır.
+#
+# Veri: sample.generate varsayılanı, 21.09.2026 - 15.11.2026, verideki son gün 15.11.2026 pazar
+# ("bu hafta" = 09-15.11, "geçen hafta" = 02-08.11).
+
+- id: g01
+  soru: bu hafta kaç siparişi teslim etmişiz
+  sql: >-
+    SELECT COUNT(DISTINCT siparis_no) FROM satis
+    WHERE durum = 'teslim' AND tarih BETWEEN DATE '2026-11-09' AND DATE '2026-11-15'
+
+- id: g02
+  soru: ekim ayında cebimize kalan toplam para ne kadar
+  sql: SELECT SUM(net_kar) FROM satis WHERE tarih BETWEEN DATE '2026-10-01' AND DATE '2026-10-31'
+
+- id: g03
+  soru: geçen hafta toplam kaç adet ürün satılmış
+  sql: >-
+    SELECT SUM(adet) FROM satis
+    WHERE durum = 'teslim' AND tarih BETWEEN DATE '2026-11-02' AND DATE '2026-11-08'
+
+- id: g04
+  soru: kasımda şu ana kadar kaç sipariş iptal olmuş
+  sql: >-
+    SELECT COUNT(DISTINCT siparis_no) FROM satis
+    WHERE durum = 'iptal' AND tarih BETWEEN DATE '2026-11-01' AND DATE '2026-11-15'
+
+- id: g05
+  soru: eylülün son 10 gününde ne kadarlık satış yapmışız
+  sql: SELECT SUM(brut_satis) FROM satis WHERE tarih BETWEEN DATE '2026-09-21' AND DATE '2026-09-30'
+
+- id: g06
+  soru: geçen hafta kargoya toplam kaç lira gitmiş
+  sql: SELECT SUM(kargo) FROM satis WHERE tarih BETWEEN DATE '2026-11-02' AND DATE '2026-11-08'
+
+- id: g07
+  soru: satışlardan bugüne kadar toplam ne kadar komisyon kesilmiş
+  sql: SELECT SUM(komisyon) FROM satis
+
+- id: g08
+  soru: sattığımız en pahalı ürün hangisi
+  # Ürün dosyasında satış fiyatı yok; satış satırlarındaki birim fiyata bakılır.
+  sql: SELECT urun FROM satis GROUP BY urun ORDER BY MAX(birim_fiyat) DESC LIMIT 1
+
+- id: g09
+  soru: ekimde bluetooth hoparlörden kaç tane satmışız
+  sql: >-
+    SELECT SUM(adet) FROM satis WHERE durum = 'teslim' AND urun = 'Bluetooth Hoparlör'
+    AND tarih BETWEEN DATE '2026-10-01' AND DATE '2026-10-31'
+
+- id: g10
+  soru: mouse pad xl depoda kaç tane kaldı
+  sql: SELECT stok FROM urunler WHERE urun = 'Mouse Pad XL'
+
+- id: g11
+  soru: alış maliyeti en düşük olan ürünümüz hangisi
+  sql: SELECT urun FROM urunler ORDER BY birim_maliyet ASC LIMIT 1
+
+- id: g12
+  soru: satışlara başladığımızdan beri kaç sipariş iade edilmiş
+  sql: SELECT COUNT(DISTINCT siparis_no) FROM satis WHERE durum = 'iade'
+
+- id: g13
+  soru: bu hafta en fazla net kazancı hangi üründen sağlamışız
+  sql: >-
+    SELECT urun FROM satis WHERE tarih BETWEEN DATE '2026-11-09' AND DATE '2026-11-15'
+    GROUP BY urun ORDER BY SUM(net_kar) DESC LIMIT 1
+
+- id: g14
+  soru: ekim ayında satılan ürünlerin bize toplam maliyeti ne olmuş
+  # "Maliyet" = ürün alış maliyeti (urun_maliyeti); komisyon ve kargo dahil değil.
+  sql: SELECT SUM(urun_maliyeti) FROM satis WHERE tarih BETWEEN DATE '2026-10-01' AND DATE '2026-10-31'
+
+- id: g15
+  soru: geçen haftaya göre bu hafta teslim edilen sipariş sayısı artmış mı
+  # Cevap için iki haftanın sayısı gerekir; model fark ya da yüzde de ekleyebilir.
+  sql: >-
+    SELECT COUNT(DISTINCT siparis_no) FILTER (WHERE tarih BETWEEN DATE '2026-11-09' AND DATE '2026-11-15'),
+           COUNT(DISTINCT siparis_no) FILTER (WHERE tarih BETWEEN DATE '2026-11-02' AND DATE '2026-11-08')
+    FROM satis WHERE durum = 'teslim'
+
+- id: g16
+  soru: son zamanlarda hangi ürünler iyi gidiyor
+  beklenen: yorumlu
+
+- id: g17
+  soru: izmirde en çok hangi ürünümüz satılmış
+  beklenen: cevaplanamaz
+
+- id: g18
+  soru: geçen ay yaptığımız indirim kampanyası satışları artırmış mı
+  beklenen: cevaplanamaz
+
+- id: g19
+  soru: bizden en fazla alışveriş yapan müşteri kimmiş
+  beklenen: cevaplanamaz
+
+- id: g20
+  soru: gecen hfya gore ciro ve kar ne durumda, kargo masrafı da artmış mı
+  # İki hafta için ciro, net kâr ve kargo: altı değerin hepsi sonuçta bulunmalı.
+  sql: >-
+    SELECT SUM(brut_satis) FILTER (WHERE tarih BETWEEN DATE '2026-11-09' AND DATE '2026-11-15'),
+           SUM(brut_satis) FILTER (WHERE tarih BETWEEN DATE '2026-11-02' AND DATE '2026-11-08'),
+           SUM(net_kar)    FILTER (WHERE tarih BETWEEN DATE '2026-11-09' AND DATE '2026-11-15'),
+           SUM(net_kar)    FILTER (WHERE tarih BETWEEN DATE '2026-11-02' AND DATE '2026-11-08'),
+           SUM(kargo)      FILTER (WHERE tarih BETWEEN DATE '2026-11-09' AND DATE '2026-11-15'),
+           SUM(kargo)      FILTER (WHERE tarih BETWEEN DATE '2026-11-02' AND DATE '2026-11-08')
+    FROM satis

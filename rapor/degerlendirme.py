@@ -112,8 +112,9 @@ class Sonuc:
     maliyet: float = 0.0
 
 
-def run(client=None, only: list[str] | None = None, progress=print) -> list[Sonuc]:
-    items = yaml.safe_load(QUESTIONS.read_text(encoding="utf-8"))
+def run(client=None, only: list[str] | None = None, progress=print, model: str = soru.MODEL,
+        questions: Path = QUESTIONS) -> list[Sonuc]:
+    items = yaml.safe_load(Path(questions).read_text(encoding="utf-8"))
     if only:
         items = [it for it in items if it["id"] in only]
     con = eval_connection()
@@ -121,11 +122,19 @@ def run(client=None, only: list[str] | None = None, progress=print) -> list[Sonu
     out: list[Sonuc] = []
     for it in items:
         t0 = time.time()
-        c = soru.ask(it["soru"], con, client=client)
+        c = soru.ask(it["soru"], con, client=client, model=model)
+        if c.durum == "hata" and c.hata.startswith(("API hatası", "API anahtarı", "API'ye bağlanılamadı")):
+            # Altyapı hatası modelin cevabı değildir: yanlış sayılırsa doğruluk ölçümü bozulur
+            # (2026-11-22'de kredi bitince Haiku'nun bir turu böyle "26/45" görünmüştü). Ölçümü durdur.
+            raise RuntimeError(f"Ölçüm durduruldu ({it['id']}): {c.hata}")
         dt = time.time() - t0
         if it.get("beklenen") == "cevaplanamaz":
             ok = c.durum == "cevaplanamaz"
             why = "" if ok else f"cevaplanamaz bekleniyordu, durum={c.durum} {c.hata}".strip()
+        elif it.get("beklenen") == "yorumlu":
+            # Belirsiz soru: makul bir yorumla cevap vermesi geçer; SQL raporda elle incelenir.
+            ok = c.durum == "ok"
+            why = "yorumlu: SQL elle incelenecek" if ok else f"durum={c.durum} {c.hata or c.aciklama}".strip()
         elif c.durum == "cevaplanamaz" and it.get("kabul_cevaplanamaz"):
             ok, why = True, "reddetti (kabul)"
         elif c.durum != "ok":
@@ -140,10 +149,10 @@ def run(client=None, only: list[str] | None = None, progress=print) -> list[Sonu
     return out
 
 
-def report(results: list[Sonuc], path: Path) -> Path:
+def report(results: list[Sonuc], path: Path, model: str = soru.MODEL, title: str = "değerlendirmesi") -> Path:
     n, ok = len(results), sum(r.gecti for r in results)
-    lines = [f"# 'Verine sor' değerlendirmesi · {date.today():%d.%m.%Y}", "",
-             f"Model: `{soru.MODEL}` · Doğru: **{ok}/{n} (%{ok / n * 100:.0f})** · "
+    lines = [f"# 'Verine sor' {title} · {date.today():%d.%m.%Y}", "",
+             f"Model: `{model}` · Doğru: **{ok}/{n} (%{ok / n * 100:.0f})** · "
              f"Ortalama süre: {sum(r.sure for r in results) / n:.1f} sn · "
              f"İkinci denemeye kalan: {sum(r.deneme == 2 for r in results)} · "
              f"Token: {sum(r.tokens_in for r in results):,} giriş / {sum(r.tokens_out for r in results):,} çıkış · "
@@ -156,6 +165,56 @@ def report(results: list[Sonuc], path: Path) -> Path:
     for r in results:
         if not r.gecti:
             lines += [f"**{r.id}** · {r.soru}", "", "```sql", r.sql or "(SQL yok)", "```", ""]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(lines), encoding="utf-8")
+    return path
+
+
+def compare_models(models: list[str], repeats: int, client=None, questions: Path = QUESTIONS,
+                   progress=print) -> dict[str, list[list[Sonuc]]]:
+    """Her modeli aynı setle `repeats` kez çalıştırır. Sonuç: model -> [tur sonuçları]."""
+    out: dict[str, list[list[Sonuc]]] = {}
+    for m in models:
+        out[m] = []
+        for i in range(repeats):
+            progress(f"--- {m} · tur {i + 1}/{repeats}")
+            out[m].append(run(client=client, progress=progress, model=m, questions=questions))
+    return out
+
+
+def compare_report(res: dict[str, list[list[Sonuc]]], path: Path, questions: Path = QUESTIONS) -> Path:
+    n = len(next(iter(res.values()))[0])
+    lines = [f"# 'Verine sor' model karşılaştırması · {date.today():%d.%m.%Y}", "",
+             f"Set: `{Path(questions).name}` ({n} soru). Her model aynı setle {len(next(iter(res.values())))} kez çalıştırıldı; "
+             "puanlama sonuca göre. Maliyet liste fiyatıyla tahmindir.", "",
+             "| Model | Turlar (doğru/" + str(n) + ") | Ortalama | En düşük | Soru başına maliyet | Ortalama süre |",
+             "|---|---|---|---|---|---|"]
+    flaky: dict[str, dict[str, int]] = {}
+    for m, runs in res.items():
+        scores = [sum(r.gecti for r in run_) for run_ in runs]
+        cost = sum(r.maliyet for run_ in runs for r in run_) / (n * len(runs))
+        secs = sum(r.sure for run_ in runs for r in run_) / (n * len(runs))
+        lines.append(f"| `{m}` | {' · '.join(map(str, scores))} | %{sum(scores) / len(scores) / n * 100:.1f} | "
+                     f"%{min(scores) / n * 100:.1f} | {cost * 100:.2f} sent | {secs:.1f} sn |")
+        fails: dict[str, int] = {}
+        for run_ in runs:
+            for r in run_:
+                if not r.gecti:
+                    fails[r.id] = fails.get(r.id, 0) + 1
+        flaky[m] = fails
+    lines += ["", "## Yanlış cevaplanan sorular", "", "Parantez içi: kaç turda yanlış.", ""]
+    for m, fails in flaky.items():
+        txt = ", ".join(f"{k} ({v})" for k, v in sorted(fails.items(), key=lambda x: -x[1])) or "yok"
+        lines.append(f"- `{m}`: {txt}")
+    lines += ["", "## Hatalar ve elle incelenecek (yorumlu) sorular", "",
+              "Her model için her sorunun ilk görüldüğü tur.", ""]
+    for m, runs in res.items():
+        seen = set()
+        for run_ in runs:
+            for r in run_:
+                if (not r.gecti or r.neden.startswith("yorumlu")) and r.id not in seen:
+                    seen.add(r.id)
+                    lines += [f"**{m} · {r.id}** · {r.soru} — {r.neden}", "", "```sql", r.sql or "(SQL yok)", "```", ""]
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(lines), encoding="utf-8")
     return path

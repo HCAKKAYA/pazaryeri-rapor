@@ -225,8 +225,16 @@ def cmd_degerlendir(args) -> None:
 
     from rapor import degerlendirme
     _load_env()
-    res = degerlendirme.run(only=args.sadece.split(",") if args.sadece else None)
-    path = degerlendirme.report(res, ROOT / "eval" / f"sonuc-{_d.today():%Y-%m-%d}.md")
+    qpath = ROOT / "eval" / args.set
+    if args.modeller:
+        aliases = {"opus": "claude-opus-5-5", "sonnet": "claude-sonnet-5-5", "haiku": "claude-haiku-5-5"}
+        models = [aliases.get(m.strip(), m.strip()) for m in args.modeller.split(",")]
+        res = degerlendirme.compare_models(models, args.tekrar, questions=qpath)
+        path = degerlendirme.compare_report(res, ROOT / "eval" / f"karsilastirma-{qpath.stem}-{_d.today():%Y-%m-%d}.md", qpath)
+        print(f"\nRapor: {path}")
+        return
+    res = degerlendirme.run(only=args.sadece.split(",") if args.sadece else None, questions=qpath)
+    path = degerlendirme.report(res, ROOT / "eval" / f"sonuc-{qpath.stem}-{_d.today():%Y-%m-%d}.md")
     ok = sum(r.gecti for r in res)
     print(f"\n{ok}/{len(res)} doğru. Rapor: {path}")
 
@@ -300,6 +308,9 @@ def main(argv=None) -> None:
 
     de = sub.add_parser("degerlendir", help="'Verine sor' doğruluğunu eval/sorular.yaml ile ölç")
     de.add_argument("--sadece", help="virgülle ayrılmış soru id'leri")
+    de.add_argument("--set", default="sorular.yaml", help="eval/ altındaki soru dosyası")
+    de.add_argument("--modeller", help="karşılaştırma: opus,sonnet,haiku ya da tam model adları")
+    de.add_argument("--tekrar", type=int, default=1, help="karşılaştırmada her modelin tur sayısı")
     de.set_defaults(fn=cmd_degerlendir)
 
     args = ap.parse_args(argv)

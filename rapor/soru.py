@@ -25,8 +25,15 @@ from .fmt import num, pct, tl
 from .narrative import _numbers
 
 MODEL = "claude-opus-5-5"
-# Milyon token başına USD (claude-opus-5-5, 2026-11). Yalnız maliyet tahmini için.
-PRICE_IN, PRICE_OUT = 4.00, 20.00
+# Milyon token başına USD (giriş, çıkış), 2026-11 liste fiyatı. Yalnız maliyet tahmini için.
+PRICES = {
+    "claude-opus-5-5": (4.00, 20.00),
+    "claude-sonnet-5-5": (2.00, 10.00),
+    "claude-haiku-5-5": (0.10, 0.50),     # 100K token altı istemler için
+}
+PRICE_IN, PRICE_OUT = PRICES[MODEL]
+# Sunucu tarafı yedek model (fallbacks) bu modellerde var; Haiku 5.5'te yok.
+_FALLBACK_OK = {"claude-opus-5-5", "claude-sonnet-5-5"}
 MAX_ROWS = 200
 TIMEOUT_S = 5.0
 
@@ -178,10 +185,12 @@ class Cevap:
     deneme: int = 0
     tokens_in: int = 0
     tokens_out: int = 0
+    model: str = MODEL
 
     @property
     def maliyet(self) -> float:
-        return (self.tokens_in * PRICE_IN + self.tokens_out * PRICE_OUT) / 1_000_000
+        p_in, p_out = PRICES.get(self.model, PRICES[MODEL])
+        return (self.tokens_in * p_in + self.tokens_out * p_out) / 1_000_000
 
     def to_dict(self) -> dict:
         return {"soru": self.soru, "durum": self.durum, "sql": self.sql, "aciklama": self.aciklama,
@@ -189,10 +198,12 @@ class Cevap:
 
 
 def _create(client, system: str, messages: list[dict], schema: dict, effort: str, out: "Cevap | None" = None):
+    model = out.model if out is not None else MODEL
+    extra = {"betas": ["server-side-fallback-2026-07-01"], "fallbacks": "default"} if model in _FALLBACK_OK else {}
     resp = client.beta.messages.create(
-        model=MODEL, max_tokens=4000, system=system, messages=messages,
+        model=model, max_tokens=4000, system=system, messages=messages,
         output_config={"effort": effort, "format": {"type": "json_schema", "schema": schema}},
-        betas=["server-side-fallback-2026-07-01"], fallbacks="default",
+        **extra,
     )
     u = getattr(resp, "usage", None)
     if out is not None and u is not None:
@@ -217,9 +228,9 @@ def context_line(con: duckdb.DuckDBPyConnection) -> str:
     return f"Veri {first:%d.%m.%Y} ile {last:%d.%m.%Y} arasını kapsıyor. Verideki son gün: {last:%Y-%m-%d}."
 
 
-def ask(question: str, con: duckdb.DuckDBPyConnection, client=None) -> Cevap:
+def ask(question: str, con: duckdb.DuckDBPyConnection, client=None, model: str = MODEL) -> Cevap:
     question = (question or "").strip()[:500]
-    out = Cevap(soru=question, durum="hata")
+    out = Cevap(soru=question, durum="hata", model=model)
     if not question:
         out.hata = "Soru boş."
         return out
@@ -271,7 +282,8 @@ def ask(question: str, con: duckdb.DuckDBPyConnection, client=None) -> Cevap:
     except anthropic.APIConnectionError:
         out.hata = "API'ye bağlanılamadı"
     except anthropic.APIStatusError as e:
-        out.hata = f"API hatası {e.status_code}"
+        msg = str(getattr(e, "message", "") or "")
+        out.hata = f"API hatası {e.status_code}" + (": kredi bitti" if "credit balance" in msg.lower() else "")
     except anthropic.AnthropicError as e:
         out.hata = f"yapay zeka kullanılamadı: {type(e).__name__}"
     except TypeError as e:

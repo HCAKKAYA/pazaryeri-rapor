@@ -111,6 +111,18 @@ def test_request_shape(con):
     assert "15.11.2026" in first["messages"][0]["content"]     # göreli tarihler için verinin son günü
 
 
+def test_model_selection_and_cost(con):
+    f = Fake(sql("SELECT 1 AS adet"), answer("1"))
+    c = soru.ask("x", con, client=f, model="claude-haiku-5-5")
+    assert all(call["model"] == "claude-haiku-5-5" for call in f.calls)
+    assert all("fallbacks" not in call for call in f.calls)          # Haiku 5.5'te sunucu tarafı yedek yok
+    c.tokens_in, c.tokens_out = 1_000_000, 1_000_000
+    assert c.maliyet == pytest.approx(0.60)
+    f2 = Fake(sql("SELECT 1 AS adet"), answer("1"))
+    soru.ask("x", con, client=f2, model="claude-sonnet-5-5")
+    assert f2.calls[0]["fallbacks"] == "default"
+
+
 def test_no_key_falls_back_cleanly(con, monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     err = TypeError("Could not resolve authentication method. Expected one of api_key")
@@ -127,6 +139,21 @@ def test_compare_rules():
     assert not degerlendirme.compare(ref, pd.DataFrame({"x": [10.0, 25.0], "u": ["B", "A"]}), ordered=True)[0]
     assert not degerlendirme.compare(ref, ref.head(1), ordered=False)[0]
     assert degerlendirme.compare(ref, ref.assign(ek=1), ordered=True)[0]          # fazladan sütun serbest
+
+
+def test_api_error_stops_evaluation_instead_of_counting_wrong():
+    import anthropic
+
+    class Broke:
+        def __init__(self):
+            self.beta = SimpleNamespace(messages=SimpleNamespace(create=self.create))
+
+        def create(self, **kw):
+            resp = SimpleNamespace(status_code=400, headers={}, request=None)
+            raise anthropic.BadRequestError("Your credit balance is too low", response=resp, body=None)
+
+    with pytest.raises(RuntimeError, match="kredi bitti"):
+        degerlendirme.run(client=Broke(), only=["toplam-ciro"], progress=lambda *_: None)
 
 
 def test_harness_with_reference_answers():
