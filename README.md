@@ -32,7 +32,7 @@ Pazaryeri panelleri ciroyu gösteriyor ama satıcının cebine kalanı göstermi
 | **Haftalık zamanlama** | Her pazartesi kendiliğinden çalışır. Veri güncel değilse eski raporu tekrar göndermez, aynı haftayı iki kez göndermez. |
 | **Satıcı paneli** | E-posta ve parolayla giriş. Dönem seçimi ve önceki eşit dönemle karşılaştırma, günlük net kâr grafiği, sıralanabilir ürün bazında net kâr tablosu (toplam satırıyla), stok ve iade tablosu, dosya yükleme. |
 | **Verine sor** | Panelde Türkçe soru: "Kargo cironun yüzde kaçını yiyor?" Claude soruyu SQL'e çevirir, sorgu salt okuma bir bağlantıda çalışır, cevap tablo ve kısa bir cümleyle gelir; kullanılan SQL görülebilir. Üç modelle, istemi görmeden yazılmış bir test setiyle de ölçüldü (aşağıda). |
-| **Yapay zeka yorumu** (isteğe bağlı) | Claude, hesaplanmış sayılardan 2-3 cümlelik bir özet ve en çok 3 öneri yazar; metindeki her sayı hesaplarla karşılaştırılır. Gerçek modelle 3 kez üretildi: üçünde de denetimden geçti, sayılar doğru ölçülere bağlıydı, sebep iddiaları "olabilir" diye işaretliydi ([çıktılar](eval/yorum-deneme-2026-11-22.json), [örnek rapor](docs/ornek-rapor.pdf)). Anahtar yoksa kural tabanlı özet kullanılır. |
+| **Yapay zeka yorumu** (isteğe bağlı) | Claude, hesaplanmış sayılardan 2-3 cümlelik bir özet ve en çok 3 öneri yazar; metindeki her sayı hesaplarla karşılaştırılır. Gerçek modelle 3 kez üretildi: üçünde de denetimden geçti, sayılar doğru ölçülere bağlıydı, sebep iddiaları "olabilir" diye işaretliydi ([Sonnet](eval/yorum-deneme-sonnet-2026-11-22.json) ve [Opus](eval/yorum-deneme-opus-2026-11-22.json) çıktıları, [örnek rapor](docs/ornek-rapor.pdf)). Anahtar yoksa kural tabanlı özet kullanılır. |
 
 ## Verine sor: nasıl ölçüldü
 
@@ -63,7 +63,7 @@ Her model her setle **3 kez** çalıştırıldı (aynı soruya her seferinde ayn
 Ne öğrendim:
 
 - **Ucuz model neredeyse aynı işi görüyor, ama her yerde değil.** Haiku, Opus'un yaklaşık 1/30 maliyetiyle ana sette aynı seviyede. Görülmemiş sette ise iki parçalı, yazım hatalı soruyu ("gecen hfya gore …") üç turda da yanlış yorumladı: bu hafta ile geçen hafta yerine geçen hafta ile ondan önceki haftayı karşılaştırdı. Bu tutarlı bir yorum hatası, rastgele değil.
-- **Gerçek bir üründe benim seçimim Sonnet olurdu:** görülmemiş sette hatasız, Opus'un yarı fiyatına ve daha hızlı.
+- **Bu yüzden varsayılan model Sonnet:** görülmemiş sette hatasız, Opus'un yarı fiyatına ve daha hızlı. "Verine sor" ve haftalık rapor yorumu (aynı kontrollerle 3 kez denendi: [Sonnet](eval/yorum-deneme-sonnet-2026-11-22.json), [Opus](eval/yorum-deneme-opus-2026-11-22.json)) Sonnet ile çalışıyor; canlı demo da öyle.
 - **Üç modelin ortak zaafı ürün adını serbest metinle aramak.** "Şeffaf telefon kılıfı" sorulduğunda adı `ILIKE '%şeffaf%telefon%kılıf%'` gibi yanlış kelime sırasıyla arayıp boş sonuç döndürebiliyorlar (ürünün adı "Telefon Kılıfı Şeffaf"). Ana setteki hataların çoğu bu. Olası çözüm, modele ürün listesini vermek; bu istem değişikliği olacağı için yeni bir görülmemiş setle ölçülmesi gerekir.
 - **Tek tur yanıltır.** Opus'un ilk gün 45/45 alması, bu hatayı o turda yapmamasındandı.
 

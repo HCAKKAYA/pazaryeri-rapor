@@ -89,7 +89,7 @@ Gerçek dışa aktarım gelince yalnız `config/mapping.yaml` içindeki sütun a
 ## Yapay zeka yorumu
 
 `narrative.py` hesaplanmış sayıları Türkçe biçimlenmiş bir olgu paketine koyar ve Claude'a
-(`claude-opus-5-5`, effort `medium`, JSON şemalı çıktı) gönderir. Model sayı hesaplamaz:
+(`claude-sonnet-5-5`, effort `medium`, JSON şemalı çıktı) gönderir. Model sayı hesaplamaz:
 yanıttaki her sayı paketle karşılaştırılır; uymayan sayı varsa bir kez düzeltme istenir,
 yine uymazsa kural tabanlı özet kullanılır. Model güvenlik gerekçesiyle reddederse sunucu
 isteği önerilen başka modelde yeniden dener (`fallbacks: "default"`).

@@ -106,7 +106,7 @@ def test_request_shape(con):
     f = Fake(sql("SELECT 1 AS adet"), answer("1"))
     soru.ask("x", con, client=f)
     first = f.calls[0]
-    assert first["model"] == "claude-opus-5-5" and first["fallbacks"] == "default"
+    assert first["model"] == "claude-sonnet-5-5" and first["fallbacks"] == "default"
     assert first["output_config"]["format"]["type"] == "json_schema"
     assert "15.11.2026" in first["messages"][0]["content"]     # göreli tarihler için verinin son günü
 

@@ -21,7 +21,8 @@ from .alerts import Alert
 from .fmt import num, pct, tl
 from .metrics import Period, pct_change
 
-MODEL = "claude-opus-5-5"
+# Sonnet: gerçek modelle 3 denemede Opus'la aynı kalitede, yarı fiyatına (eval/yorum-deneme-*.json).
+MODEL = "claude-sonnet-5-5"
 MAX_RECS = 3
 
 SYSTEM = """Sen bir pazaryeri satıcısının haftalık raporuna yorum yazan bir veri analistisin.

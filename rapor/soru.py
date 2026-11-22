@@ -24,7 +24,9 @@ import pandas as pd
 from .fmt import num, pct, tl
 from .narrative import _numbers
 
-MODEL = "claude-opus-5-5"
+# Varsayılan Sonnet: görülmemiş sette 3 turda %100 (Opus %96,7), Opus'un yarı fiyatı ve daha hızlı
+# (eval/karsilastirma-gorulmemis-2026-11-22.md). Model değişikliği istem değişikliği değildir.
+MODEL = "claude-sonnet-5-5"
 # Milyon token başına USD (giriş, çıkış), 2026-11 liste fiyatı. Yalnız maliyet tahmini için.
 PRICES = {
     "claude-opus-5-5": (4.00, 20.00),

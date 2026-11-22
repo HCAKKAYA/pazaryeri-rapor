@@ -72,7 +72,7 @@ def test_ai_path_clean(ctx):
     n = narrative.write(facts, found, client=client)
     assert n.kaynak == "yapay zeka" and len(client.calls) == 1
     call = client.calls[0]
-    assert call["model"] == "claude-opus-5-5"
+    assert call["model"] == "claude-sonnet-5-5"
     assert call["output_config"]["format"]["type"] == "json_schema"
     assert call["fallbacks"] == "default"
 
