@@ -282,6 +282,10 @@ def create_app(config_path: Path | None = None, db_path: Path | None = None, roo
     def static_js():
         return FileResponse(STATIC / "panel.js", media_type="text/javascript")
 
+    @app.get("/static/tema.js")
+    def static_theme_js():
+        return FileResponse(STATIC / "tema.js", media_type="text/javascript")
+
     @app.get("/api/ozet")
     def api_summary(bas: date | None = None, bit: date | None = None, oturum: str | None = Cookie(None)):
         _, store = current(oturum)

@@ -97,14 +97,15 @@ def build(out: Path, today: date | None = None, make_pdf: bool = True, client=No
         html = (dashboard.TEMPLATES / "panel.html").read_text(encoding="utf-8")
         html = html.replace("{{MAGAZA}}", demo.STORE_NAME).replace("<body>", '<body data-statik="1">', 1)
         html = re.sub(r'\s*<form method="post" action="/cikis".*?</form>', "", html, count=1, flags=re.S)
-        html = html.replace('src="/static/panel.js"', 'src="panel.js"')
+        html = html.replace('src="/static/panel.js"', 'src="panel.js"').replace('src="/static/tema.js"', 'src="tema.js"')
         html = html.replace("veri her gün yeniden üretilir.",
                             f'veri her hafta yeniden üretilir. <a href="{report_link}">Bu haftanın raporu</a> ·', 1)
         assert 'data-statik="1"' in html and "/cikis" not in html and 'src="panel.js"' in html
         (out / "index.html").write_text(html, encoding="utf-8")
         shutil.copy(dashboard.STATIC / "panel.js", out / "panel.js")
+        shutil.copy(dashboard.STATIC / "tema.js", out / "tema.js")
         (out / ".nojekyll").write_text("", encoding="utf-8")
-        written += [out / "index.html", out / "panel.js"]
+        written += [out / "index.html", out / "panel.js", out / "tema.js"]
         return written
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

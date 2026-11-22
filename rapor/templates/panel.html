@@ -6,28 +6,46 @@
 <meta name="referrer" content="same-origin">
 <meta name="robots" content="noindex">
 <title>{{MAGAZA}} · Panel</title>
+<script src="/static/tema.js"></script>
 <style>
   :root {
     --bg:#f0efec; --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --ink3:#7a7974; --line:#e4e3df;
     --soft:#f6f5f2; --accent:#2a78d6; --accent-soft:#e6f0fc;
     --crit:#c62f2e; --warn:#a86b00; --good:#0a7d0a; --bar:#2a78d6; --bar-neg:#2a78d6;
+    --c1:#2a78d6; --c2:#eb6834; --c3:#1baf7a; --c4:#eda100; --muted-bar:#b9b7b0; --hca-dot:#79945b;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
       --bg:#121211; --surface:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --ink3:#97968e; --line:#33332f;
       --soft:#232321; --accent:#3987e5; --accent-soft:#1d2c40;
       --crit:#ef6b6a; --warn:#e0a33a; --good:#3fbf3f; --bar:#3987e5; --bar-neg:#3987e5;
+      --c1:#3987e5; --c2:#d95926; --c3:#199e70; --c4:#c98500; --muted-bar:#5c5b56; --hca-dot:#9db97f;
     }
   }
   :root[data-theme="dark"] {
     --bg:#121211; --surface:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --ink3:#97968e; --line:#33332f;
     --soft:#232321; --accent:#3987e5; --accent-soft:#1d2c40;
     --crit:#ef6b6a; --warn:#e0a33a; --good:#3fbf3f; --bar:#3987e5; --bar-neg:#3987e5;
+    --c1:#3987e5; --c2:#d95926; --c3:#199e70; --c4:#c98500; --muted-bar:#5c5b56; --hca-dot:#9db97f;
   }
   * { box-sizing:border-box; }
   body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif; }
   .wrap { max-width:1100px; margin:0 auto; padding:20px 16px 48px; }
   [hidden] { display:none !important; }  /* display:flex gibi kurallar hidden özniteliğini ezmesin */
+  .topbar { display:flex; justify-content:space-between; align-items:center; gap:12px; margin:-4px 0 12px; }
+  .hca { font-weight:800; font-size:22px; letter-spacing:-1.8px; line-height:1; color:var(--ink); text-decoration:none; }
+  .hca span { color:var(--hca-dot); }
+  .hca small { font-size:11px; font-weight:500; letter-spacing:0; color:var(--ink3); margin-left:8px; }
+  .hca:hover small { color:var(--ink2); }
+  .theme { display:inline-flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; background:var(--surface); }
+  .theme button { border:0; background:transparent; color:var(--ink2); padding:5px 10px; font:inherit; font-size:12.5px; cursor:pointer; }
+  .theme button + button { border-left:1px solid var(--line); }
+  .theme button[aria-pressed="true"] { background:var(--accent-soft); color:var(--ink); font-weight:600; }
+  .grid2b { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
+  .chartbox.tall { height:360px; }
+  @media (max-width:900px) { .grid2b { grid-template-columns:1fr; } }
+  /* Izgara öğeleri varsayılan olarak içeriğinden dar olamaz; canvas eski genişliğini koruyup kartı taşırır. */
+  .grid2 > *, .grid2b > * { min-width:0; }
   header { display:flex; justify-content:space-between; align-items:flex-end; gap:12px; flex-wrap:wrap; margin-bottom:14px; }
   h1 { font-size:22px; margin:0; }
   .fresh { color:var(--ink2); font-size:13px; }
@@ -107,6 +125,15 @@
 </head>
 <body>
 <div class="wrap">
+  <div class="topbar">
+    <a class="hca" href="https://huseyincanakkaya.com/" target="_blank" rel="noopener"
+       title="Hüseyin Can Akkaya tarafından geliştirildi">hca<span>.</span><small>Hüseyin Can Akkaya</small></a>
+    <div class="theme" role="group" aria-label="Tema">
+      <button type="button" data-tema="auto">Otomatik</button>
+      <button type="button" data-tema="light">Açık</button>
+      <button type="button" data-tema="dark">Koyu</button>
+    </div>
+  </div>
   <header>
     <div>
       <h1>{{MAGAZA}}</h1>
@@ -157,6 +184,25 @@
       <h2>Bakılması gerekenler</h2>
       <div id="alerts"></div>
     </div>
+  </div>
+
+  <div class="grid2b">
+    <div class="card">
+      <h2>Brüt satıştan net kâra</h2>
+      <p class="note">Seçili dönemde satışın ne kadarı komisyona, kargoya ve ürün maliyetine gidiyor, ne kadarı kalıyor.</p>
+      <div class="chartbox"><canvas id="ch-selale" role="img" aria-label="Brüt satıştan net kâra şelale grafiği"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>Ürünlere göre net kâr</h2>
+      <p class="note">Seçili dönemde her ürünün bıraktığı net kâr; sıfırın solundakiler zarar ediyor.</p>
+      <div class="chartbox tall"><canvas id="ch-urun" role="img" aria-label="Ürünlere göre net kâr grafiği"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:14px">
+    <h2>Satış her üründe nereye gidiyor?</h2>
+    <p class="note">Her ürünün brüt satışının yüzde kaçı komisyon, kargo ve ürün maliyeti; kalan kısım net kâr. Ucuz ürünlerde kargonun payı belirgin.</p>
+    <div class="chartbox tall"><canvas id="ch-kirilim" role="img" aria-label="Ürün başına gider kırılımı grafiği"></canvas></div>
   </div>
 
   <div class="card">

@@ -57,6 +57,7 @@
       : `<div class="empty">Bu dönem için uyarı yok.</div>`;
 
     drawChart(d.gunluk);
+    drawExtra(d);
     drawTable();
 
     const q = v.kalite.length ? `<ul>${v.kalite.map(n => `<li>${esc(n)}</li>`).join("")}</ul>` : "";
@@ -172,7 +173,93 @@
     finally { btn.disabled = false; }
   }));
 
-  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => state.data && drawChart(state.data.gunluk));
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => redrawAll());
+
+  // ---------------------------------------------------------------- ek grafikler
+  const charts = {};
+  const pct1 = v => (v < 0 ? "−" : "") + "%" + Math.abs(v).toLocaleString("tr-TR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  function baseScales(horizontal, fmt) {
+    const ink2 = css("--ink2"), line = css("--line");
+    const val = { grid: { color: line }, border: { display: false }, ticks: { color: ink2, callback: fmt, maxTicksLimit: 6 } };
+    const cat = { grid: { display: false }, ticks: { color: ink2, autoSkip: false } };
+    return horizontal ? { x: val, y: cat } : { x: cat, y: val };
+  }
+  function draw(id, cfg) {
+    if (charts[id]) charts[id].destroy();
+    charts[id] = new Chart($(id), cfg);
+  }
+
+  function drawExtra(d) {
+    const t = d.urun_toplam;
+    if (!t) return;
+    // 1) Şelale: brüt → − komisyon → − kargo → − maliyet → net
+    const B = t.brut, k = t.komisyon, s = t.kargo, m = t.maliyet, N = t.net;
+    const steps = [["Brüt satış", [0, B], B], ["Komisyon", [B - k, B], -k], ["Kargo", [B - k - s, B - k], -s],
+                   ["Ürün maliyeti", [N, B - k - s], -m], ["Net kâr", [0, N], N]];
+    const total = css("--c1"), muted = css("--muted-bar");
+    draw("ch-selale", {
+      type: "bar",
+      data: { labels: steps.map(x => [x[0], fmtTL(x[2])]),
+              datasets: [{ data: steps.map(x => x[1]), backgroundColor: steps.map((x, i) => i === 0 || i === 4 ? total : muted),
+                           borderRadius: 3, borderSkipped: false, maxBarThickness: 70 }] },
+      options: { responsive: true, maintainAspectRatio: false, animation: { duration: 200 },
+        plugins: { legend: { display: false }, tooltip: { callbacks: {
+          title: it => steps[it[0].dataIndex][0],
+          label: it => { const v = steps[it.dataIndex][2]; return `${fmtTL(v)} · brüt satışın ${pct1(v / B * 100)}`; } } } },
+        scales: baseScales(false, fmtTL) },
+    });
+
+    // 2) Ürünlere göre net kâr (büyükten küçüğe)
+    const byNet = [...d.urunler].sort((a, b) => b.net - a.net);
+    draw("ch-urun", {
+      type: "bar",
+      data: { labels: byNet.map(u => u.urun),
+              datasets: [{ label: "Net kâr", data: byNet.map(u => u.net), backgroundColor: css("--c1"),
+                           borderRadius: 3, maxBarThickness: 18 }] },
+      options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, animation: { duration: 200 },
+        plugins: { legend: { display: false }, tooltip: { callbacks: {
+          label: it => { const u = byNet[it.dataIndex]; return [`Net kâr: ${fmtTL(u.net)}`, `Marj: ${u.marj == null ? "—" : pct1(u.marj * 100)}`]; } } } },
+        scales: baseScales(true, fmtTL) },
+    });
+
+    // 3) Satış her üründe nereye gidiyor (brüt satışın yüzdesi, brüte göre sıralı)
+    const byGross = [...d.urunler].filter(u => u.brut > 0).sort((a, b) => b.brut - a.brut);
+    const share = key => byGross.map(u => u[key] / u.brut * 100);
+    const series = [["Net kâr", "net", "--c1"], ["Ürün maliyeti", "maliyet", "--c2"], ["Kargo", "kargo", "--c3"], ["Komisyon", "komisyon", "--c4"]];
+    draw("ch-kirilim", {
+      type: "bar",
+      data: { labels: byGross.map(u => u.urun),
+              datasets: series.map(([label, key, color]) => ({ label, data: share(key), backgroundColor: css(color),
+                                                               borderColor: css("--surface"), borderWidth: 1, maxBarThickness: 18 })) },
+      options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, animation: { duration: 200 },
+        interaction: { mode: "index", intersect: false },
+        plugins: { legend: { position: "top", align: "start", labels: { color: css("--ink2"), boxWidth: 12, boxHeight: 12 } },
+          tooltip: { callbacks: {
+            title: it => `${byGross[it[0].dataIndex].urun} · brüt ${fmtTL(byGross[it[0].dataIndex].brut)}`,
+            label: it => { const u = byGross[it.dataIndex], key = series[it.datasetIndex][1];
+                           return `${series[it.datasetIndex][0]}: ${pct1(it.raw)} (${fmtTL(u[key])})`; } } } },
+        scales: { x: { stacked: true, grid: { color: css("--line") }, border: { display: false },
+                       ticks: { color: css("--ink2"), callback: v => "%" + v } },
+                  y: { stacked: true, grid: { display: false }, ticks: { color: css("--ink2"), autoSkip: false } } } },
+    });
+  }
+
+  // ---------------------------------------------------------------- tema seçici
+  function currentTheme() { return document.documentElement.getAttribute("data-theme") || "auto"; }
+  function markTheme() {
+    document.querySelectorAll(".theme button").forEach(b => b.setAttribute("aria-pressed", b.dataset.tema === currentTheme()));
+  }
+  function redrawAll() { if (state.data) { drawChart(state.data.gunluk); drawExtra(state.data); } }
+  document.querySelectorAll(".theme button").forEach(b => b.addEventListener("click", () => {
+    const t = b.dataset.tema;
+    if (t === "auto") document.documentElement.removeAttribute("data-theme");
+    else document.documentElement.setAttribute("data-theme", t);
+    try { t === "auto" ? localStorage.removeItem("panel-tema") : localStorage.setItem("panel-tema", t); } catch (e) { /* yok say */ }
+    markTheme();
+    redrawAll();
+  }));
+  markTheme();
+
 
   // ---------------------------------------------------------------- Verine sor
   // Sunuculu panelde ziyaretçi soru yazar (/api/sor). Statik demoda (GitHub Pages) sunucu ve anahtar
