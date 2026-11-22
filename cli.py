@@ -229,8 +229,11 @@ def cmd_degerlendir(args) -> None:
     if args.modeller:
         aliases = {"opus": "claude-opus-5-5", "sonnet": "claude-sonnet-5-5", "haiku": "claude-haiku-5-5"}
         models = [aliases.get(m.strip(), m.strip()) for m in args.modeller.split(",")]
-        res = degerlendirme.compare_models(models, args.tekrar, questions=qpath)
-        path = degerlendirme.compare_report(res, ROOT / "eval" / f"karsilastirma-{qpath.stem}-{_d.today():%Y-%m-%d}.md", qpath)
+        only = args.sadece.split(",") if args.sadece else None
+        res = degerlendirme.compare_models(models, args.tekrar, questions=qpath, only=only)
+        suffix = "-" + "-".join(only) if only else ""
+        path = degerlendirme.compare_report(
+            res, ROOT / "eval" / f"karsilastirma-{qpath.stem}{suffix}-{_d.today():%Y-%m-%d}.md", qpath)
         print(f"\nRapor: {path}")
         return
     res = degerlendirme.run(only=args.sadece.split(",") if args.sadece else None, questions=qpath)

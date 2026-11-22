@@ -74,12 +74,26 @@ def _row_match(ref_row, got_row) -> bool:
     return True
 
 
+BICIM = "biçim farklı, değerler tam"
+
+
+def _values_present(ref_row: tuple, got: pd.DataFrame) -> bool:
+    """Tek satırlık referansın her değeri, sonucun herhangi bir hücresinde (her hücre bir kez) var mı?
+    Örn. referans (bu_hafta, gecen_hafta) tek satırda, model iki satır (hafta, değer) döndürmüş."""
+    cells = [v for row in got.itertuples(index=False) for v in row]
+    return _row_match(ref_row, tuple(cells))
+
+
 def compare(ref: pd.DataFrame, got: pd.DataFrame | None, ordered: bool) -> tuple[bool, str]:
+    """Katı karşılaştırma. Katı ölçütte kalıp yalnız biçimi farklı olan cevaplarda neden BICIM ile başlar
+    (esnek ölçütte doğru sayılır)."""
     if got is None:
         return False, "sonuç yok"
     ref_rows = [tuple(r) for r in ref.itertuples(index=False)]
     got_rows = [tuple(r) for r in got.itertuples(index=False)]
     if len(ref_rows) != len(got_rows):
+        if len(ref_rows) == 1 and len(ref_rows[0]) > 1 and _values_present(ref_rows[0], got):
+            return False, f"{BICIM} (beklenen 1 satır, gelen {len(got_rows)})"
         return False, f"satır sayısı farklı (beklenen {len(ref_rows)}, gelen {len(got_rows)})"
     if ordered:
         for i, (r, g) in enumerate(zip(ref_rows, got_rows)):
@@ -171,14 +185,14 @@ def report(results: list[Sonuc], path: Path, model: str = soru.MODEL, title: str
 
 
 def compare_models(models: list[str], repeats: int, client=None, questions: Path = QUESTIONS,
-                   progress=print) -> dict[str, list[list[Sonuc]]]:
+                   progress=print, only: list[str] | None = None) -> dict[str, list[list[Sonuc]]]:
     """Her modeli aynı setle `repeats` kez çalıştırır. Sonuç: model -> [tur sonuçları]."""
     out: dict[str, list[list[Sonuc]]] = {}
     for m in models:
         out[m] = []
         for i in range(repeats):
             progress(f"--- {m} · tur {i + 1}/{repeats}")
-            out[m].append(run(client=client, progress=progress, model=m, questions=questions))
+            out[m].append(run(client=client, progress=progress, model=m, questions=questions, only=only))
     return out
 
 
@@ -187,15 +201,19 @@ def compare_report(res: dict[str, list[list[Sonuc]]], path: Path, questions: Pat
     lines = [f"# 'Verine sor' model karşılaştırması · {date.today():%d.%m.%Y}", "",
              f"Set: `{Path(questions).name}` ({n} soru). Her model aynı setle {len(next(iter(res.values())))} kez çalıştırıldı; "
              "puanlama sonuca göre. Maliyet liste fiyatıyla tahmindir.", "",
-             "| Model | Turlar (doğru/" + str(n) + ") | Ortalama | En düşük | Soru başına maliyet | Ortalama süre |",
-             "|---|---|---|---|---|---|"]
+             "**Esnek**: katı ölçütte yanlış sayılan ama tüm değerleri doğru olup yalnız biçimi farklı olan "
+             "cevaplar (ör. iki haftayı iki satırda vermek) doğru sayılır.", "",
+             "| Model | Turlar (doğru/" + str(n) + ") | Ortalama | En düşük | Esnek ortalama | Soru başına maliyet | Ortalama süre |",
+             "|---|---|---|---|---|---|---|"]
     flaky: dict[str, dict[str, int]] = {}
     for m, runs in res.items():
         scores = [sum(r.gecti for r in run_) for run_ in runs]
         cost = sum(r.maliyet for run_ in runs for r in run_) / (n * len(runs))
         secs = sum(r.sure for run_ in runs for r in run_) / (n * len(runs))
+        flex = [sum(r.gecti or r.neden.startswith(BICIM) for r in run_) for run_ in runs]
         lines.append(f"| `{m}` | {' · '.join(map(str, scores))} | %{sum(scores) / len(scores) / n * 100:.1f} | "
-                     f"%{min(scores) / n * 100:.1f} | {cost * 100:.2f} sent | {secs:.1f} sn |")
+                     f"%{min(scores) / n * 100:.1f} | %{sum(flex) / len(flex) / n * 100:.1f} | "
+                     f"{cost * 100:.2f} sent | {secs:.1f} sn |")
         fails: dict[str, int] = {}
         for run_ in runs:
             for r in run_:
@@ -210,11 +228,12 @@ def compare_report(res: dict[str, list[list[Sonuc]]], path: Path, questions: Pat
               "Her model için her sorunun ilk görüldüğü tur.", ""]
     for m, runs in res.items():
         seen = set()
-        for run_ in runs:
+        for t, run_ in enumerate(runs, 1):
             for r in run_:
-                if (not r.gecti or r.neden.startswith("yorumlu")) and r.id not in seen:
+                # Hataların hepsi (her tur); yorumlu sorular yalnız ilk turda.
+                if not r.gecti or (r.neden.startswith("yorumlu") and r.id not in seen):
                     seen.add(r.id)
-                    lines += [f"**{m} · {r.id}** · {r.soru} — {r.neden}", "", "```sql", r.sql or "(SQL yok)", "```", ""]
+                    lines += [f"**{m} · tur {t} · {r.id}** · {r.soru} — {r.neden}", "", "```sql", r.sql or "(SQL yok)", "```", ""]
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(lines), encoding="utf-8")
     return path

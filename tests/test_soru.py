@@ -139,6 +139,13 @@ def test_compare_rules():
     assert not degerlendirme.compare(ref, pd.DataFrame({"x": [10.0, 25.0], "u": ["B", "A"]}), ordered=True)[0]
     assert not degerlendirme.compare(ref, ref.head(1), ordered=False)[0]
     assert degerlendirme.compare(ref, ref.assign(ek=1), ordered=True)[0]          # fazladan sütun serbest
+    # Esnek: tek satırda iki değer beklenirken iki satırda gelmesi "biçim farklı" olarak işaretlenir.
+    wide = pd.DataFrame({"bu": [493], "gecen": [465]})
+    long_ = pd.DataFrame({"hafta": ["2026-11-02", "2026-11-09"], "siparis": [465, 493]})
+    ok, why = degerlendirme.compare(wide, long_, ordered=False)
+    assert not ok and why.startswith(degerlendirme.BICIM)
+    ok, why = degerlendirme.compare(wide, pd.DataFrame({"h": ["a", "b"], "s": [465, 999]}), ordered=False)
+    assert not ok and not why.startswith(degerlendirme.BICIM)                    # değer yanlışsa biçim sayılmaz
 
 
 def test_api_error_stops_evaluation_instead_of_counting_wrong():
