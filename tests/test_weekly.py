@@ -71,6 +71,29 @@ def test_stale_data_is_not_sent(root, sent):
     assert r[0]["durum"] == "atlandi" and "güncel değil" in r[0]["ayrinti"] and sent == []
 
 
+def test_stale_data_does_not_call_ai(root, sent, monkeypatch):
+    """Gönderilmeyecek rapor için model çağrılmaz (boşuna API harcaması olmasın)."""
+    calls = []
+    monkeypatch.setattr(pipeline.narrative, "write", lambda *a, **k: calls.append(1))
+    cfgp = _config(root, gonder=True)
+    r = weekly.run_all(cfgp, today=date(2026, 11, 23), use_ai=True, root=root)
+    assert r[0]["durum"] == "atlandi" and calls == [] and sent == []
+
+
+def test_fresh_data_still_uses_ai(root, sent, monkeypatch):
+    calls = []
+    real_rule_based = pipeline.narrative.rule_based
+
+    def fake_write(facts, found):
+        calls.append(1)
+        return real_rule_based(facts, found, "test")
+
+    monkeypatch.setattr(pipeline.narrative, "write", fake_write)
+    cfgp = _config(root, gonder=True)
+    r = weekly.run_all(cfgp, today=date(2026, 11, 16), use_ai=True, root=root)
+    assert r[0]["durum"] == "gonderildi" and calls == [1]
+
+
 def test_gonder_false_only_drafts(root, sent):
     cfgp = _config(root, gonder=False)
     r = _run(root, cfgp, date(2026, 11, 16))

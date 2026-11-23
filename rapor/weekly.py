@@ -92,6 +92,7 @@ def run_all(config_path: Path | None = None, *, today: date | None = None, force
                 name, orders, products, use_ai=use_ai, recipients=m.get("alicilar") or None,
                 out_dir=root / "raporlar", db_dir=root / "data",
                 sender=smtp_cfg.sender if smtp_cfg else "rapor@localhost",
+                expect_week=None if force else want,
             )
             for n in res.notes:
                 log.info("%s: %s", name, n)

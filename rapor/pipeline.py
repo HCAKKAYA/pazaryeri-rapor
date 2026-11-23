@@ -42,8 +42,12 @@ class Result:
 def run(store: str, orders_path: Path, products_path: Path, *, week: str | None = None,
         use_ai: bool = True, make_pdf: bool = True, recipients: list[str] | None = None,
         send_cfg: "mailer.SmtpConfig | None" = None, out_dir: Path | None = None,
-        db_dir: Path | None = None, sender: str = "rapor@localhost") -> Result:
-    """send_cfg verilirse e-posta gönderilir; verilmezse yalnız taslak yazılır."""
+        db_dir: Path | None = None, sender: str = "rapor@localhost", expect_week: str | None = None) -> Result:
+    """send_cfg verilirse e-posta gönderilir; verilmezse yalnız taslak yazılır.
+
+    expect_week verilir ve verideki son tam hafta ondan farklıysa (veri güncel değil, rapor
+    gönderilmeyecek) yapay zeka çağrılmaz; taslak kural tabanlı özetle yazılır.
+    """
     out_dir = out_dir or ROOT / "raporlar"
     db_dir = db_dir or ROOT / "data"
     cfg = clean.load_mapping(ROOT / "config" / "mapping.yaml")
@@ -66,7 +70,13 @@ def run(store: str, orders_path: Path, products_path: Path, *, week: str | None 
     con.close()
 
     facts = narrative.build_facts(week, cur, prev, series, prod, found)
-    story = narrative.write(facts, found) if use_ai else narrative.rule_based(facts, found, "yapay zeka kapalı")
+    if not use_ai:
+        story = narrative.rule_based(facts, found, "yapay zeka kapalı")
+    elif expect_week and week != expect_week:
+        story = narrative.rule_based(facts, found, f"veri güncel değil ({week}, beklenen {expect_week}); "
+                                                   "gönderilmeyecek rapor için yapay zeka çağrılmadı")
+    else:
+        story = narrative.write(facts, found)
 
     out_dir.mkdir(parents=True, exist_ok=True)
     html_path = out_dir / f"{slug}-{week}.html"
